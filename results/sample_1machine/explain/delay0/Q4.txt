@@ -1,0 +1,31 @@
+-- Q4 @ nhatrang, trễ 0 ms
+-- Q4 · Lượt đặt của khách gia đình có trẻ dưới 6 tuổi và cần đón sân bay — đọc từ jsonb
+-- @> và @? là toán tử dựng sẵn, IMMUTABLE => được đẩy xuống từng trạm (xem Remote SQL)
+SELECT b.booking_id, b.guest_name, b.check_in, b.nights
+FROM all_booking b
+WHERE b.guest_type = 'family'
+  AND b.request @> '{"airport_pickup": true}'
+  AND b.request @? '$.children_ages[*] ? (@ < 6)'
+ORDER BY b.booking_id;
+
+
+Sort  (cost=1147.92..1148.01 rows=36 width=29) (actual time=24.788..24.954 rows=3413 loops=1)
+  Output: booking.booking_id, booking.guest_name, booking.check_in, booking.nights
+  Sort Key: booking.booking_id
+  Sort Method: quicksort  Memory: 290kB
+  ->  Append  (cost=100.00..1146.98 rows=36 width=29) (actual time=5.010..24.200 rows=3413 loops=1)
+        ->  Foreign Scan on s_dalat.booking  (cost=100.00..131.74 rows=1 width=42) (actual time=5.009..5.061 rows=686 loops=1)
+              Output: booking.booking_id, booking.guest_name, booking.check_in, booking.nights
+              Remote SQL: SELECT booking_id, guest_name, check_in, nights FROM public.booking WHERE ((request @> '{"airport_pickup": true}')) AND ((request @? '$."children_ages"[*]?(@ < 6)'::jsonpath)) AND ((guest_type = 'family'))
+        ->  Seq Scan on public.booking booking_1  (cost=0.00..751.59 rows=33 width=28) (actual time=0.020..5.338 rows=849 loops=1)
+              Output: booking_1.booking_id, booking_1.guest_name, booking_1.check_in, booking_1.nights
+              Filter: ((booking_1.request @> '{"airport_pickup": true}'::jsonb) AND (booking_1.request @? '$."children_ages"[*]?(@ < 6)'::jsonpath) AND (booking_1.guest_type = 'family'::text))
+              Rows Removed by Filter: 19242
+        ->  Foreign Scan on s_phuquoc.booking booking_2  (cost=100.00..131.74 rows=1 width=42) (actual time=6.096..6.158 rows=822 loops=1)
+              Output: booking_2.booking_id, booking_2.guest_name, booking_2.check_in, booking_2.nights
+              Remote SQL: SELECT booking_id, guest_name, check_in, nights FROM public.booking WHERE ((request @> '{"airport_pickup": true}')) AND ((request @? '$."children_ages"[*]?(@ < 6)'::jsonpath)) AND ((guest_type = 'family'))
+        ->  Foreign Scan on s_danang.booking booking_3  (cost=100.00..131.74 rows=1 width=42) (actual time=6.798..7.379 rows=1056 loops=1)
+              Output: booking_3.booking_id, booking_3.guest_name, booking_3.check_in, booking_3.nights
+              Remote SQL: SELECT booking_id, guest_name, check_in, nights FROM public.booking WHERE ((request @> '{"airport_pickup": true}')) AND ((request @? '$."children_ages"[*]?(@ < 6)'::jsonpath)) AND ((guest_type = 'family'))
+Planning Time: 0.394 ms
+Execution Time: 25.860 ms

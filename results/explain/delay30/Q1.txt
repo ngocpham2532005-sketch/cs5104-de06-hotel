@@ -1,0 +1,118 @@
+-- Q1 @ dalat, trễ 30 ms
+-- Q1 · Công suất phòng các khách sạn Đà Lạt, tháng 7/2025
+-- CHẠY TRỰC TIẾP TRÊN TRẠM dalat (chỉ bảng cục bộ, EXPLAIN không có Foreign Scan)
+WITH rooms AS (
+    SELECT r.hotel_id, count(*) AS n_rooms
+    FROM room r GROUP BY r.hotel_id
+), sold AS (
+    -- số đêm của mỗi lượt đặt nằm trong tháng 7/2025 (cắt phần ngoài tháng)
+    SELECT r.hotel_id,
+           sum(least(b.check_in + b.nights, DATE '2025-08-01') - greatest(b.check_in, DATE '2025-07-01')) AS nights_sold
+    FROM booking b JOIN room r ON r.room_id = b.room_id
+    WHERE b.check_in < DATE '2025-08-01' AND b.check_in + b.nights > DATE '2025-07-01'
+    GROUP BY r.hotel_id
+), per AS (
+    SELECT h.hotel_id, h.name, coalesce(s.nights_sold, 0) AS nights_sold, rm.n_rooms * 31 AS nights_available
+    FROM hotel h
+    JOIN rooms rm ON rm.hotel_id = h.hotel_id
+    LEFT JOIN sold s ON s.hotel_id = h.hotel_id
+    WHERE h.region = 'dalat'
+)
+SELECT hotel_id, name, nights_sold, nights_available,
+       round(100.0 * nights_sold / nights_available, 2) AS occupancy_pct
+FROM per
+UNION ALL
+SELECT NULL, 'TỔNG Đà Lạt', sum(nights_sold), sum(nights_available),
+       round(100.0 * sum(nights_sold) / sum(nights_available), 2)
+FROM per
+ORDER BY hotel_id NULLS LAST;
+
+
+Sort  (cost=636.91..636.94 rows=14 width=132) (actual time=2.804..2.811 rows=14.00 loops=1)
+  Output: "*SELECT* 1".hotel_id, "*SELECT* 1".name, (("*SELECT* 1".nights_sold)::numeric), (("*SELECT* 1".nights_available)::numeric), "*SELECT* 1".occupancy_pct
+  Sort Key: "*SELECT* 1".hotel_id
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=343
+  CTE per
+    ->  Hash Left Join  (cost=634.32..635.61 rows=13 width=53) (actual time=2.744..2.763 rows=13.00 loops=1)
+          Output: h.hotel_id, h.name, COALESCE(s.nights_sold, '0'::bigint), (rm.n_rooms * 31)
+          Inner Unique: true
+          Hash Cond: (h.hotel_id = s.hotel_id)
+          Buffers: shared hit=343
+          ->  Hash Join  (cost=32.32..33.53 rows=13 width=45) (actual time=0.234..0.248 rows=13.00 loops=1)
+                Output: h.hotel_id, h.name, rm.n_rooms
+                Inner Unique: true
+                Hash Cond: (h.hotel_id = rm.hotel_id)
+                Buffers: shared hit=15
+                ->  Seq Scan on public.hotel h  (cost=0.00..1.16 rows=13 width=37) (actual time=0.009..0.014 rows=13.00 loops=1)
+                      Output: h.hotel_id, h.name, h.region, h.stars
+                      Filter: (h.region = 'dalat'::text)
+                      Buffers: shared hit=1
+                ->  Hash  (cost=32.16..32.16 rows=13 width=12) (actual time=0.215..0.217 rows=13.00 loops=1)
+                      Output: rm.n_rooms, rm.hotel_id
+                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                      Buffers: shared hit=14
+                      ->  Subquery Scan on rm  (cost=31.90..32.16 rows=13 width=12) (actual time=0.211..0.215 rows=13.00 loops=1)
+                            Output: rm.n_rooms, rm.hotel_id
+                            Buffers: shared hit=14
+                            ->  HashAggregate  (cost=31.90..32.03 rows=13 width=12) (actual time=0.211..0.213 rows=13.00 loops=1)
+                                  Output: r.hotel_id, count(*)
+                                  Group Key: r.hotel_id
+                                  Batches: 1  Memory Usage: 32kB
+                                  Buffers: shared hit=14
+                                  ->  Seq Scan on public.room r  (cost=0.00..25.93 rows=1193 width=4) (actual time=0.005..0.081 rows=1193.00 loops=1)
+                                        Output: r.room_id, r.hotel_id, r.room_type_code, r.floor, r.rate
+                                        Buffers: shared hit=14
+          ->  Hash  (cost=601.84..601.84 rows=13 width=12) (actual time=2.501..2.502 rows=13.00 loops=1)
+                Output: s.nights_sold, s.hotel_id
+                Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                Buffers: shared hit=328
+                ->  Subquery Scan on s  (cost=601.58..601.84 rows=13 width=12) (actual time=2.491..2.497 rows=13.00 loops=1)
+                      Output: s.nights_sold, s.hotel_id
+                      Buffers: shared hit=328
+                      ->  HashAggregate  (cost=601.58..601.71 rows=13 width=12) (actual time=2.490..2.494 rows=13.00 loops=1)
+                            Output: r_1.hotel_id, sum((LEAST((b.check_in + (b.nights)::integer), '2025-08-01'::date) - GREATEST(b.check_in, '2025-07-01'::date)))
+                            Group Key: r_1.hotel_id
+                            Batches: 1  Memory Usage: 32kB
+                            Buffers: shared hit=328
+                            ->  Hash Join  (cost=125.43..564.43 rows=2123 width=10) (actual time=0.420..2.312 rows=1003.00 loops=1)
+                                  Output: r_1.hotel_id, b.check_in, b.nights
+                                  Inner Unique: true
+                                  Hash Cond: (b.room_id = r_1.room_id)
+                                  Buffers: shared hit=328
+                                  ->  Bitmap Heap Scan on public.booking b  (cost=84.59..517.99 rows=2123 width=10) (actual time=0.219..1.953 rows=1003.00 loops=1)
+                                        Output: b.booking_id, b.room_id, b.guest_name, b.check_in, b.nights, b.guest_type, b.tour_group_id, b.request
+                                        Recheck Cond: (b.check_in < '2025-08-01'::date)
+                                        Filter: ((b.check_in + (b.nights)::integer) > '2025-07-01'::date)
+                                        Rows Removed by Filter: 5376
+                                        Heap Blocks: exact=306
+                                        Buffers: shared hit=314
+                                        ->  Bitmap Index Scan on booking_checkin_idx  (cost=0.00..84.06 rows=6370 width=0) (actual time=0.192..0.192 rows=6379.00 loops=1)
+                                              Index Cond: (b.check_in < '2025-08-01'::date)
+                                              Index Searches: 1
+                                              Buffers: shared hit=8
+                                  ->  Hash  (cost=25.93..25.93 rows=1193 width=8) (actual time=0.190..0.190 rows=1193.00 loops=1)
+                                        Output: r_1.hotel_id, r_1.room_id
+                                        Buckets: 2048  Batches: 1  Memory Usage: 63kB
+                                        Buffers: shared hit=14
+                                        ->  Seq Scan on public.room r_1  (cost=0.00..25.93 rows=1193 width=8) (actual time=0.005..0.068 rows=1193.00 loops=1)
+                                              Output: r_1.hotel_id, r_1.room_id
+                                              Buffers: shared hit=14
+  ->  Append  (cost=0.00..1.03 rows=14 width=132) (actual time=2.754..2.795 rows=14.00 loops=1)
+        Buffers: shared hit=343
+        ->  Subquery Scan on "*SELECT* 1"  (cost=0.00..0.62 rows=13 width=132) (actual time=2.754..2.783 rows=13.00 loops=1)
+              Output: "*SELECT* 1".hotel_id, "*SELECT* 1".name, "*SELECT* 1".nights_sold, "*SELECT* 1".nights_available, "*SELECT* 1".occupancy_pct
+              Buffers: shared hit=343
+              ->  CTE Scan on per  (cost=0.00..0.42 rows=13 width=84) (actual time=2.752..2.778 rows=13.00 loops=1)
+                    Output: per.hotel_id, per.name, per.nights_sold, per.nights_available, round(((100.0 * (per.nights_sold)::numeric) / (per.nights_available)::numeric), 2)
+                    Storage: Memory  Maximum Storage: 18kB
+                    Buffers: shared hit=343
+        ->  Aggregate  (cost=0.33..0.35 rows=1 width=132) (actual time=0.009..0.009 rows=1.00 loops=1)
+              Output: NULL::integer, 'TỔNG Đà Lạt'::text, sum(per_1.nights_sold), sum(per_1.nights_available), round(((100.0 * sum(per_1.nights_sold)) / sum(per_1.nights_available)), 2)
+              ->  CTE Scan on per per_1  (cost=0.00..0.26 rows=13 width=16) (actual time=0.000..0.002 rows=13.00 loops=1)
+                    Output: per_1.hotel_id, per_1.name, per_1.nights_sold, per_1.nights_available
+                    Storage: Memory  Maximum Storage: 18kB
+Planning:
+  Buffers: shared hit=12
+Planning Time: 0.507 ms
+Execution Time: 2.887 ms

@@ -1,0 +1,46 @@
+# Cấu hình triển khai: trạm -> máy, IP, cổng.
+# Sửa IP của máy A và máy B cho đúng mạng LAN lúc demo (xem `ip addr` / `ipconfig`).
+# Đổi sang điểm phát Wi-Fi điện thoại: chỉ cần sửa hai dòng ip bên dưới rồi `make link`.
+
+[db]
+user     = "postgres"
+password = "cs5104"
+dbname   = "hotel"        # CSDL của mỗi trạm
+refdb    = "hotel_ref"    # CSDL tập trung đối chứng (đặt trong container trạm trung tâm)
+size     = "lab"          # mini | lab
+# postgres_fdw từ trạm trung tâm tới CSDL đối chứng nằm CÙNG container => localhost:5432 bên trong container
+ref_fdw_host = "localhost"
+ref_fdw_port = 5432
+
+[machines.A]
+ip = "192.168.1.10"
+
+[machines.B]
+ip = "192.168.1.20"
+
+# site_no dùng để cấp khoá chính không trùng: mã mới = 1.000.000 + 10*n + site_no
+[sites.dalat]
+machine = "A"
+port    = 5434
+site_no = 1
+
+[sites.nhatrang]          # trạm trung tâm: giữ postgres_fdw, khung nhìn all_*, CSDL đối chứng
+machine = "A"
+port    = 5433
+site_no = 2
+central = true
+
+[sites.phuquoc]
+machine = "B"
+port    = 5435
+site_no = 3
+
+[sites.danang]
+machine = "B"
+port    = 5436
+site_no = 4
+
+[app]
+entry_port = 8080
+dash_port  = 8081
+delay_ms   = 30

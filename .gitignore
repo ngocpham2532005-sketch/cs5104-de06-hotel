@@ -1,0 +1,6 @@
+datagen/de06_hotel/output/
+build/
+logs/
+results/.delay
+results/.delay_proxy.pid
+__pycache__/

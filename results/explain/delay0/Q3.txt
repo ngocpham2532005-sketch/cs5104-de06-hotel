@@ -1,0 +1,60 @@
+-- Q3 @ nhatrang, trễ 0 ms
+-- Q3 · Toàn bộ phòng đã đặt của một đoàn tour đi qua nhiều vùng, sắp theo ngày nhận phòng
+-- 410 = mã đoàn (mặc định 410: có phòng ở dalat, phuquoc, danang). Trong psql: \set tg 410
+-- tour_group được sao chép nhưng booking chia theo vùng KHÁCH SẠN, trung tâm không biết trước đoàn
+-- có phòng ở vùng nào => hỏi cả 4 trạm; WHERE tour_group_id = 410 được đẩy xuống từng trạm.
+SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name
+FROM (
+  SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name FROM s_dalat.v_tour_room WHERE tour_group_id = 410
+  UNION ALL SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name FROM s_nhatrang.v_tour_room WHERE tour_group_id = 410
+  UNION ALL SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name FROM s_phuquoc.v_tour_room WHERE tour_group_id = 410
+  UNION ALL SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name FROM s_danang.v_tour_room WHERE tour_group_id = 410
+) x
+ORDER BY check_in, booking_id;
+
+
+Sort  (cost=449.86..449.91 rows=18 width=99) (actual time=10.580..10.590 rows=58.00 loops=1)
+  Output: v_tour_room.booking_id, v_tour_room.region, v_tour_room.hotel, v_tour_room.room_id, v_tour_room.room_type_code, v_tour_room.check_in, v_tour_room.nights, v_tour_room.guest_name
+  Sort Key: v_tour_room.check_in, v_tour_room.booking_id
+  Sort Method: quicksort  Memory: 30kB
+  Buffers: shared hit=2
+  ->  Append  (cost=100.00..449.49 rows=18 width=99) (actual time=3.655..10.560 rows=58.00 loops=1)
+        Buffers: shared hit=2
+        ->  Foreign Scan on s_dalat.v_tour_room  (cost=100.00..116.58 rows=2 width=142) (actual time=3.654..3.657 rows=22.00 loops=1)
+              Output: v_tour_room.booking_id, v_tour_room.region, v_tour_room.hotel, v_tour_room.room_id, v_tour_room.room_type_code, v_tour_room.check_in, v_tour_room.nights, v_tour_room.guest_name
+              Remote SQL: SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name FROM public.v_tour_room WHERE ((tour_group_id = 410))
+        ->  Nested Loop  (cost=55.94..99.65 rows=12 width=78) (actual time=0.019..0.021 rows=0.00 loops=1)
+              Output: b.booking_id, h.region, h.name, b.room_id, r.room_type_code, b.check_in, b.nights, b.guest_name
+              Inner Unique: true
+              Buffers: shared hit=2
+              ->  Hash Join  (cost=55.81..97.75 rows=12 width=41) (actual time=0.018..0.020 rows=0.00 loops=1)
+                    Output: b.booking_id, b.room_id, b.check_in, b.nights, b.guest_name, r.room_type_code, r.hotel_id
+                    Inner Unique: true
+                    Hash Cond: (b.room_id = r.room_id)
+                    Buffers: shared hit=2
+                    ->  Bitmap Heap Scan on public.booking b  (cost=4.41..46.33 rows=12 width=32) (actual time=0.018..0.018 rows=0.00 loops=1)
+                          Output: b.booking_id, b.room_id, b.guest_name, b.check_in, b.nights, b.guest_type, b.tour_group_id, b.request
+                          Recheck Cond: ((b.tour_group_id IS NOT NULL) AND (b.tour_group_id = 410))
+                          Buffers: shared hit=2
+                          ->  Bitmap Index Scan on booking_tg_idx  (cost=0.00..4.41 rows=12 width=0) (actual time=0.011..0.011 rows=0.00 loops=1)
+                                Index Cond: ((b.tour_group_id IS NOT NULL) AND (b.tour_group_id = 410))
+                                Index Searches: 1
+                                Buffers: shared hit=2
+                    ->  Hash  (cost=30.62..30.62 rows=1662 width=13) (never executed)
+                          Output: r.room_type_code, r.room_id, r.hotel_id
+                          ->  Seq Scan on public.room r  (cost=0.00..30.62 rows=1662 width=13) (never executed)
+                                Output: r.room_type_code, r.room_id, r.hotel_id
+              ->  Index Scan using hotel_pkey on public.hotel h  (cost=0.14..0.16 rows=1 width=45) (never executed)
+                    Output: h.hotel_id, h.name, h.region, h.stars
+                    Index Cond: (h.hotel_id = r.hotel_id)
+                    Index Searches: 0
+        ->  Foreign Scan on s_phuquoc.v_tour_room v_tour_room_1  (cost=100.00..116.58 rows=2 width=142) (actual time=3.322..3.324 rows=19.00 loops=1)
+              Output: v_tour_room_1.booking_id, v_tour_room_1.region, v_tour_room_1.hotel, v_tour_room_1.room_id, v_tour_room_1.room_type_code, v_tour_room_1.check_in, v_tour_room_1.nights, v_tour_room_1.guest_name
+              Remote SQL: SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name FROM public.v_tour_room WHERE ((tour_group_id = 410))
+        ->  Foreign Scan on s_danang.v_tour_room v_tour_room_2  (cost=100.00..116.58 rows=2 width=142) (actual time=3.547..3.549 rows=17.00 loops=1)
+              Output: v_tour_room_2.booking_id, v_tour_room_2.region, v_tour_room_2.hotel, v_tour_room_2.room_id, v_tour_room_2.room_type_code, v_tour_room_2.check_in, v_tour_room_2.nights, v_tour_room_2.guest_name
+              Remote SQL: SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name FROM public.v_tour_room WHERE ((tour_group_id = 410))
+Planning:
+  Buffers: shared hit=16
+Planning Time: 0.502 ms
+Execution Time: 19.088 ms

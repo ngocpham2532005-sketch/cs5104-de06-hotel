@@ -1,0 +1,87 @@
+-- Q2-global @ nhatrang, trễ 0 ms
+-- Q2 viết thẳng trên khung nhìn toàn cục all_* (để so sánh với q2.sql):
+-- planner không ghép được JOIN qua UNION ALL => kéo booking năm 2025 của mọi trạm về trung tâm rồi mới JOIN.
+SELECT h.region, r.room_type_code, rt.name AS room_type,
+       count(*) AS bookings, sum(b.nights) AS nights, sum(b.nights * r.rate) AS revenue
+FROM all_booking b
+JOIN all_room r  ON r.room_id  = b.room_id
+JOIN all_hotel h ON h.hotel_id = r.hotel_id
+JOIN room_type rt ON rt.room_type_code = r.room_type_code
+WHERE b.check_in >= DATE '2025-01-01' AND b.check_in < DATE '2026-01-01'
+GROUP BY h.region, r.room_type_code, rt.name
+ORDER BY h.region, r.room_type_code;
+
+
+GroupAggregate  (cost=71682.81..86871.55 rows=433964 width=109) (actual time=119.365..153.978 rows=60 loops=1)
+  Output: hotel.region, room.room_type_code, rt.name, count(*), sum(booking.nights), sum(((booking.nights)::numeric * room.rate))
+  Group Key: hotel.region, room.room_type_code, rt.name
+  ->  Sort  (cost=71682.81..72767.72 rows=433964 width=84) (actual time=117.354..126.407 rows=53533 loops=1)
+        Output: hotel.region, room.room_type_code, rt.name, booking.nights, room.rate
+        Sort Key: hotel.region, room.room_type_code, rt.name
+        Sort Method: external merge  Disk: 2016kB
+        ->  Merge Join  (cost=3737.31..10279.13 rows=433964 width=84) (actual time=63.500..83.619 rows=53533 loops=1)
+              Output: hotel.region, room.room_type_code, rt.name, booking.nights, room.rate
+              Merge Cond: (room.room_id = booking.room_id)
+              ->  Sort  (cost=1601.70..1617.96 rows=6507 width=86) (actual time=11.269..11.902 rows=6000 loops=1)
+                    Output: room.room_type_code, room.rate, room.room_id, hotel.region, rt.name
+                    Sort Key: room.room_id
+                    Sort Method: quicksort  Memory: 537kB
+                    ->  Hash Join  (cost=575.11..1189.55 rows=6507 width=86) (actual time=7.833..9.619 rows=6000 loops=1)
+                          Output: room.room_type_code, room.rate, room.room_id, hotel.region, rt.name
+                          Hash Cond: (hotel.hotel_id = room.hotel_id)
+                          ->  Append  (cost=100.00..474.57 rows=4111 width=36) (actual time=0.243..1.099 rows=60 loops=1)
+                                ->  Foreign Scan on s_dalat.hotel  (cost=100.00..150.95 rows=1365 width=36) (actual time=0.242..0.253 rows=13 loops=1)
+                                      Output: hotel.region, hotel.hotel_id
+                                      Remote SQL: SELECT hotel_id, region FROM public.hotel
+                                ->  Seq Scan on public.hotel hotel_1  (cost=0.00..1.16 rows=16 width=13) (actual time=0.010..0.021 rows=16 loops=1)
+                                      Output: hotel_1.region, hotel_1.hotel_id
+                                ->  Foreign Scan on s_phuquoc.hotel hotel_2  (cost=100.00..150.95 rows=1365 width=36) (actual time=0.481..0.489 rows=14 loops=1)
+                                      Output: hotel_2.region, hotel_2.hotel_id
+                                      Remote SQL: SELECT hotel_id, region FROM public.hotel
+                                ->  Foreign Scan on s_danang.hotel hotel_3  (cost=100.00..150.95 rows=1365 width=36) (actual time=0.318..0.324 rows=17 loops=1)
+                                      Output: hotel_3.region, hotel_3.hotel_id
+                                      Remote SQL: SELECT hotel_id, region FROM public.hotel
+                          ->  Hash  (cost=471.15..471.15 rows=317 width=58) (actual time=7.583..7.589 rows=6000 loops=1)
+                                Output: room.room_type_code, room.rate, room.room_id, room.hotel_id, rt.name
+                                Buckets: 8192 (originally 1024)  Batches: 1 (originally 1)  Memory Usage: 418kB
+                                ->  Hash Join  (cost=101.34..471.15 rows=317 width=58) (actual time=0.739..6.423 rows=6000 loops=1)
+                                      Output: room.room_type_code, room.rate, room.room_id, room.hotel_id, rt.name
+                                      Inner Unique: true
+                                      Hash Cond: (room.room_type_code = rt.room_type_code)
+                                      ->  Append  (cost=100.00..458.50 rows=4221 width=51) (actual time=0.720..5.230 rows=6000 loops=1)
+                                            ->  Foreign Scan on s_dalat.room  (cost=100.00..135.59 rows=853 width=72) (actual time=0.720..1.116 rows=1193 loops=1)
+                                                  Output: room.room_type_code, room.rate, room.room_id, room.hotel_id
+                                                  Remote SQL: SELECT room_id, hotel_id, room_type_code, rate FROM public.room
+                                            ->  Seq Scan on public.room room_1  (cost=0.00..30.62 rows=1662 width=18) (actual time=0.007..0.178 rows=1662 loops=1)
+                                                  Output: room_1.room_type_code, room_1.rate, room_1.room_id, room_1.hotel_id
+                                            ->  Foreign Scan on s_phuquoc.room room_2  (cost=100.00..135.59 rows=853 width=72) (actual time=0.966..1.399 rows=1387 loops=1)
+                                                  Output: room_2.room_type_code, room_2.rate, room_2.room_id, room_2.hotel_id
+                                                  Remote SQL: SELECT room_id, hotel_id, room_type_code, rate FROM public.room
+                                            ->  Foreign Scan on s_danang.room room_3  (cost=100.00..135.59 rows=853 width=72) (actual time=0.898..2.049 rows=1758 loops=1)
+                                                  Output: room_3.room_type_code, room_3.rate, room_3.room_id, room_3.hotel_id
+                                                  Remote SQL: SELECT room_id, hotel_id, room_type_code, rate FROM public.room
+                                      ->  Hash  (cost=1.15..1.15 rows=15 width=13) (actual time=0.013..0.014 rows=15 loops=1)
+                                            Output: rt.name, rt.room_type_code
+                                            Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                            ->  Seq Scan on public.room_type rt  (cost=0.00..1.15 rows=15 width=13) (actual time=0.005..0.008 rows=15 loops=1)
+                                                  Output: rt.name, rt.room_type_code
+              ->  Sort  (cost=2135.62..2168.96 rows=13338 width=6) (actual time=52.218..60.360 rows=53533 loops=1)
+                    Output: booking.nights, booking.room_id
+                    Sort Key: booking.room_id
+                    Sort Method: quicksort  Memory: 3209kB
+                    ->  Append  (cost=100.00..1221.75 rows=13338 width=6) (actual time=1.001..40.616 rows=53533 loops=1)
+                          ->  Foreign Scan on s_dalat.booking  (cost=100.00..151.23 rows=14 width=6) (actual time=1.001..7.827 rows=10980 loops=1)
+                                Output: booking.nights, booking.room_id
+                                Remote SQL: SELECT room_id, nights FROM public.booking WHERE ((check_in >= '2025-01-01')) AND ((check_in < '2026-01-01'))
+                          ->  Seq Scan on public.booking booking_1  (cost=0.00..701.37 rows=13296 width=6) (actual time=0.029..2.836 rows=13319 loops=1)
+                                Output: booking_1.nights, booking_1.room_id
+                                Filter: ((booking_1.check_in >= '2025-01-01'::date) AND (booking_1.check_in < '2026-01-01'::date))
+                                Rows Removed by Filter: 6772
+                          ->  Foreign Scan on s_phuquoc.booking booking_2  (cost=100.00..151.23 rows=14 width=6) (actual time=1.173..10.785 rows=13241 loops=1)
+                                Output: booking_2.nights, booking_2.room_id
+                                Remote SQL: SELECT room_id, nights FROM public.booking WHERE ((check_in >= '2025-01-01')) AND ((check_in < '2026-01-01'))
+                          ->  Foreign Scan on s_danang.booking booking_3  (cost=100.00..151.23 rows=14 width=6) (actual time=1.016..14.700 rows=15993 loops=1)
+                                Output: booking_3.nights, booking_3.room_id
+                                Remote SQL: SELECT room_id, nights FROM public.booking WHERE ((check_in >= '2025-01-01')) AND ((check_in < '2026-01-01'))
+Planning Time: 0.694 ms
+Execution Time: 155.706 ms

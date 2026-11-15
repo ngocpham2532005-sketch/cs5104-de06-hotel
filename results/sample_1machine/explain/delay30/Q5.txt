@@ -1,0 +1,47 @@
+-- Q5 @ nhatrang, trễ 30 ms
+-- Q5 · Như Q4 nhưng đọc từ bản quan hệ req_family + req_family_child
+-- Khung nhìn mảnh v_family_req (JOIN booking–req_family, tuổi nhỏ nhất của trẻ) chạy tại từng trạm.
+SELECT booking_id, guest_name, check_in, nights
+FROM (
+  SELECT booking_id, guest_name, check_in, nights FROM s_dalat.v_family_req WHERE airport_pickup AND min_child_age < 6
+  UNION ALL SELECT booking_id, guest_name, check_in, nights FROM s_nhatrang.v_family_req WHERE airport_pickup AND min_child_age < 6
+  UNION ALL SELECT booking_id, guest_name, check_in, nights FROM s_phuquoc.v_family_req WHERE airport_pickup AND min_child_age < 6
+  UNION ALL SELECT booking_id, guest_name, check_in, nights FROM s_danang.v_family_req WHERE airport_pickup AND min_child_age < 6
+) x
+ORDER BY booking_id;
+
+
+Sort  (cost=23328.51..23331.74 rows=1294 width=35) (actual time=179.779..180.032 rows=3413 loops=1)
+  Output: v_family_req.booking_id, v_family_req.guest_name, v_family_req.check_in, v_family_req.nights
+  Sort Key: v_family_req.booking_id
+  Sort Method: quicksort  Memory: 290kB
+  ->  Append  (cost=100.00..23261.62 rows=1294 width=35) (actual time=5.090..179.012 rows=3413 loops=1)
+        ->  Foreign Scan on s_dalat.v_family_req  (cost=100.00..129.65 rows=207 width=42) (actual time=5.089..5.136 rows=686 loops=1)
+              Output: v_family_req.booking_id, v_family_req.guest_name, v_family_req.check_in, v_family_req.nights
+              Remote SQL: SELECT booking_id, guest_name, check_in, nights FROM public.v_family_req WHERE (airport_pickup) AND ((min_child_age < 6))
+        ->  Nested Loop  (cost=0.29..22866.19 rows=673 width=28) (actual time=0.050..5.764 rows=849 loops=1)
+              Output: b.booking_id, b.guest_name, b.check_in, b.nights
+              Inner Unique: true
+              ->  Seq Scan on public.req_family f  (cost=0.00..60.78 rows=2019 width=4) (actual time=0.011..0.325 rows=2019 loops=1)
+                    Output: f.booking_id, f.extra_bed, f.airport_pickup
+                    Filter: f.airport_pickup
+                    Rows Removed by Filter: 2159
+              ->  Index Scan using booking_pkey on public.booking b  (cost=0.29..11.30 rows=1 width=28) (actual time=0.002..0.002 rows=0 loops=2019)
+                    Output: b.booking_id, b.room_id, b.guest_name, b.check_in, b.nights, b.guest_type, b.tour_group_id, b.request
+                    Index Cond: (b.booking_id = f.booking_id)
+                    Filter: ((SubPlan 1) < 6)
+                    Rows Removed by Filter: 1
+                    SubPlan 1
+                      ->  Aggregate  (cost=10.07..10.08 rows=1 width=2) (actual time=0.001..0.001 rows=1 loops=2019)
+                            Output: min(c.age)
+                            ->  Index Scan using req_family_child_pkey on public.req_family_child c  (cost=0.28..10.07 rows=2 width=2) (actual time=0.001..0.001 rows=1 loops=2019)
+                                  Output: c.booking_id, c.seq, c.age
+                                  Index Cond: (c.booking_id = b.booking_id)
+        ->  Foreign Scan on s_phuquoc.v_family_req v_family_req_1  (cost=100.00..129.65 rows=207 width=42) (actual time=67.511..67.646 rows=822 loops=1)
+              Output: v_family_req_1.booking_id, v_family_req_1.guest_name, v_family_req_1.check_in, v_family_req_1.nights
+              Remote SQL: SELECT booking_id, guest_name, check_in, nights FROM public.v_family_req WHERE (airport_pickup) AND ((min_child_age < 6))
+        ->  Foreign Scan on s_danang.v_family_req v_family_req_2  (cost=100.00..129.65 rows=207 width=42) (actual time=68.491..100.184 rows=1056 loops=1)
+              Output: v_family_req_2.booking_id, v_family_req_2.guest_name, v_family_req_2.check_in, v_family_req_2.nights
+              Remote SQL: SELECT booking_id, guest_name, check_in, nights FROM public.v_family_req WHERE (airport_pickup) AND ((min_child_age < 6))
+Planning Time: 0.413 ms
+Execution Time: 304.044 ms

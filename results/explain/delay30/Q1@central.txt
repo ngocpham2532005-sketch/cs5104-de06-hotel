@@ -1,0 +1,86 @@
+-- Q1@central @ nhatrang, trễ 30 ms
+-- Q1 tại trạm trung tâm: định vị (localize) — mọi mảnh cần đều ở trạm dalat,
+-- nên cả câu (join + gộp) được đẩy xuống dalat qua srv_dalat
+WITH rooms AS (
+    SELECT r.hotel_id, count(*) AS n_rooms
+    FROM s_dalat.room r GROUP BY r.hotel_id
+), sold AS (
+    -- số đêm của mỗi lượt đặt nằm trong tháng 7/2025 (cắt phần ngoài tháng)
+    SELECT r.hotel_id,
+           sum(least(b.check_in + b.nights, DATE '2025-08-01') - greatest(b.check_in, DATE '2025-07-01')) AS nights_sold
+    FROM s_dalat.booking b JOIN s_dalat.room r ON r.room_id = b.room_id
+    WHERE b.check_in < DATE '2025-08-01' AND b.check_in + b.nights > DATE '2025-07-01'
+    GROUP BY r.hotel_id
+), per AS (
+    SELECT h.hotel_id, h.name, coalesce(s.nights_sold, 0) AS nights_sold, rm.n_rooms * 31 AS nights_available
+    FROM s_dalat.hotel h
+    JOIN rooms rm ON rm.hotel_id = h.hotel_id
+    LEFT JOIN sold s ON s.hotel_id = h.hotel_id
+    WHERE h.region = 'dalat'
+)
+SELECT hotel_id, name, nights_sold, nights_available,
+       round(100.0 * nights_sold / nights_available, 2) AS occupancy_pct
+FROM per
+UNION ALL
+SELECT NULL, 'TỔNG Đà Lạt', sum(nights_sold), sum(nights_available),
+       round(100.0 * sum(nights_sold) / sum(nights_available), 2)
+FROM per
+ORDER BY hotel_id NULLS LAST;
+
+
+Sort  (cost=1414.68..1414.70 rows=8 width=132) (actual time=25.744..25.755 rows=14.00 loops=1)
+  Output: "*SELECT* 1".hotel_id, "*SELECT* 1".name, (("*SELECT* 1".nights_sold)::numeric), (("*SELECT* 1".nights_available)::numeric), "*SELECT* 1".occupancy_pct
+  Sort Key: "*SELECT* 1".hotel_id
+  Sort Method: quicksort  Memory: 25kB
+  CTE per
+    ->  Hash Left Join  (cost=1327.88..1413.99 rows=7 width=52) (actual time=25.647..25.668 rows=13.00 loops=1)
+          Output: h.hotel_id, h.name, COALESCE(s.nights_sold, '0'::bigint), ((count(*)) * 31)
+          Inner Unique: true
+          Hash Cond: (h.hotel_id = s.hotel_id)
+          ->  Hash Join  (cost=243.25..329.31 rows=7 width=44) (actual time=7.418..7.434 rows=13.00 loops=1)
+                Output: h.hotel_id, h.name, (count(*))
+                Hash Cond: (r.hotel_id = h.hotel_id)
+                ->  Foreign Scan  (cost=114.62..197.88 rows=200 width=12) (actual time=3.822..3.825 rows=13.00 loops=1)
+                      Output: r.hotel_id, (count(*))
+                      Relations: Aggregate on (s_dalat.room r)
+                      Remote SQL: SELECT hotel_id, count(*) FROM public.room GROUP BY 1
+                ->  Hash  (cost=128.53..128.53 rows=7 width=36) (actual time=3.579..3.581 rows=13.00 loops=1)
+                      Output: h.hotel_id, h.name
+                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                      ->  Foreign Scan on s_dalat.hotel h  (cost=100.00..128.53 rows=7 width=36) (actual time=3.563..3.565 rows=13.00 loops=1)
+                            Output: h.hotel_id, h.name
+                            Remote SQL: SELECT hotel_id, name FROM public.hotel WHERE ((region = 'dalat'))
+          ->  Hash  (cost=1082.13..1082.13 rows=200 width=12) (actual time=18.198..18.200 rows=13.00 loops=1)
+                Output: s.nights_sold, s.hotel_id
+                Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                ->  Subquery Scan on s  (cost=1078.13..1082.13 rows=200 width=12) (actual time=18.183..18.191 rows=13.00 loops=1)
+                      Output: s.nights_sold, s.hotel_id
+                      ->  HashAggregate  (cost=1078.13..1080.13 rows=200 width=12) (actual time=18.181..18.186 rows=13.00 loops=1)
+                            Output: r_1.hotel_id, sum((LEAST((b.check_in + (b.nights)::integer), '2025-08-01'::date) - GREATEST(b.check_in, '2025-07-01'::date)))
+                            Group Key: r_1.hotel_id
+                            Batches: 1  Memory Usage: 32kB
+                            ->  Hash Join  (cost=317.81..1018.11 rows=3430 width=10) (actual time=15.538..18.026 rows=1003.00 loops=1)
+                                  Output: r_1.hotel_id, b.check_in, b.nights
+                                  Hash Cond: (r_1.room_id = b.room_id)
+                                  ->  Foreign Scan on s_dalat.room r_1  (cost=100.00..673.20 rows=2560 width=8) (actual time=4.623..6.832 rows=1193.00 loops=1)
+                                        Output: r_1.room_id, r_1.hotel_id, r_1.room_type_code, r_1.floor, r_1.rate
+                                        Remote SQL: SELECT room_id, hotel_id FROM public.room
+                                  ->  Hash  (cost=214.46..214.46 rows=268 width=10) (actual time=10.902..10.902 rows=1003.00 loops=1)
+                                        Output: b.check_in, b.nights, b.room_id
+                                        Buckets: 1024  Batches: 1  Memory Usage: 52kB
+                                        ->  Foreign Scan on s_dalat.booking b  (cost=100.00..214.46 rows=268 width=10) (actual time=8.471..10.748 rows=1003.00 loops=1)
+                                              Output: b.check_in, b.nights, b.room_id
+                                              Remote SQL: SELECT room_id, check_in, nights FROM public.booking WHERE ((check_in < '2025-08-01')) AND (((check_in + nights) > '2025-07-01'::date))
+  ->  Append  (cost=0.00..0.57 rows=8 width=132) (actual time=25.681..25.728 rows=14.00 loops=1)
+        ->  Subquery Scan on "*SELECT* 1"  (cost=0.00..0.33 rows=7 width=132) (actual time=25.679..25.707 rows=13.00 loops=1)
+              Output: "*SELECT* 1".hotel_id, "*SELECT* 1".name, "*SELECT* 1".nights_sold, "*SELECT* 1".nights_available, "*SELECT* 1".occupancy_pct
+              ->  CTE Scan on per  (cost=0.00..0.23 rows=7 width=84) (actual time=25.675..25.699 rows=13.00 loops=1)
+                    Output: per.hotel_id, per.name, per.nights_sold, per.nights_available, round(((100.0 * (per.nights_sold)::numeric) / (per.nights_available)::numeric), 2)
+                    Storage: Memory  Maximum Storage: 18kB
+        ->  Aggregate  (cost=0.18..0.20 rows=1 width=132) (actual time=0.014..0.014 rows=1.00 loops=1)
+              Output: NULL::integer, 'TỔNG Đà Lạt'::text, sum(per_1.nights_sold), sum(per_1.nights_available), round(((100.0 * sum(per_1.nights_sold)) / sum(per_1.nights_available)), 2)
+              ->  CTE Scan on per per_1  (cost=0.00..0.14 rows=7 width=16) (actual time=0.001..0.002 rows=13.00 loops=1)
+                    Output: per_1.hotel_id, per_1.name, per_1.nights_sold, per_1.nights_available
+                    Storage: Memory  Maximum Storage: 18kB
+Planning Time: 0.334 ms
+Execution Time: 33.948 ms

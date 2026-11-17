@@ -3,6 +3,7 @@
 Bốn trạm PostgreSQL 18 (`dalat`, `nhatrang` (trung tâm), `phuquoc`, `danang`), mỗi vùng một trạm, chạy trên
 **máy A (macOS)** và **máy B (Windows)**. Trạm trung tâm truy vấn xuyên trạm bằng `postgres_fdw` qua các
 khung nhìn toàn cục `all_<bảng>`; có giao diện nhập liệu và dashboard theo dõi từng trạm.
+**Mọi kết nối qua mạng đều mã hoá TLS ≥ 1.3, `verify-full`** với CA nội bộ của nhóm (E3, mặc định; [docs/BAO_MAT.md](docs/BAO_MAT.md)).
 
 | Máy | Hệ điều hành | Chạy | Cổng |
 |---|---|---|---|
@@ -21,10 +22,12 @@ Tài liệu: [IMPLEMENT.md](IMPLEMENT.md) (thiết kế và cách cài đặt ch
 | | Kết quả |
 |---|---|
 | Nạp dữ liệu | 190.831 dòng, từng mảnh khớp `summary.json`; tổng các mảnh = CSDL đối chứng |
+| `make all` từ máy sạch | 4 phút 35 giây trên hai máy thật, gồm cấp chứng chỉ TLS cho 5 nút (12 s) |
 | `make check` | ĐẠT 103/103 (ba quy tắc đúng đắn, PK/FK toàn hệ, jsonb ⇄ bản quan hệ) |
+| `make tls-test` | 8/8 (không mã hoá, gọi bằng IP, thiếu/sai chứng chỉ, thử ghi đều bị từ chối) |
 | Q1–Q5 | giống hệt CSDL đối chứng; Q1 chạy trọn tại `dalat` (0 Foreign Scan) |
-| Trễ 30 ms | Q1 0,5 ms (không đổi); Q2 436 ms, Q3 423 ms, Q4 449 ms, Q5 438 ms (≈ 11 vòng khứ hồi) |
-| Dòng liên vùng | 5.144 / 80.000 = 6,43%; Q3 của đoàn một vùng tốn ngang đoàn ba vùng (426 / 428 ms) |
+| Trễ 30 ms (TLS bật) | Q1 0,55 ms (không đổi); Q2 459 ms, Q3 433 ms, Q4 443 ms, Q5 433 ms (≈ 11 vòng khứ hồi, như khi không TLS) |
+| Dòng liên vùng | 5.144 / 80.000 = 6,43%; Q3 của đoàn một vùng tốn ngang đoàn ba vùng (431 / 433 ms) |
 
 ---
 
@@ -38,11 +41,11 @@ Tài liệu: [IMPLEMENT.md](IMPLEMENT.md) (thiết kế và cách cài đặt ch
 |---|---|---|
 | Cùng một mạng LAN hoặc Wi-Fi (kể cả hai băng 2.4/5 GHz của **cùng một router**) | không cần gì thêm | **demo D1–D8 và số đo trong báo cáo** (cách đề yêu cầu) |
 | Cùng điểm phát Wi-Fi của điện thoại | không cần gì thêm | phương án dự phòng khi demo |
-| Hai nơi khác nhau (hai router, hai Wi-Fi khác mạng) | VPN: WireGuard site-to-site, hoặc Tailscale/Headscale; ghi **IP VPN** của mỗi máy vào `deploy.toml` | phát triển, chạy thử từ xa; nên bật thêm **E3** (TLS + chứng chỉ, mục 4) |
+| Hai nơi khác nhau (hai router, hai Wi-Fi khác mạng) | VPN: WireGuard site-to-site, hoặc Tailscale/Headscale; ghi **IP VPN** của mỗi máy vào `deploy.toml` | phát triển, chạy thử từ xa; TLS của E3 (mặc định) vẫn bảo vệ dữ liệu dù VPN bị lộ |
 
 Lưu ý khi hai máy ở hai nơi:
 - Trễ thật của Internet (thường 10–50 ms) cộng thêm vào 30 ms giả lập, nên số đo **không so được** với Bảng 3 của báo cáo. Số liệu nộp bài đo trên cùng một LAN.
-- **Không** mở cổng router để đưa PostgreSQL ra Internet: mật khẩu mặc định nằm trong repo.
+- **Không** mở cổng router để đưa PostgreSQL ra Internet: dù có TLS, mật khẩu quản trị mặc định vẫn nằm trong repo.
 - Mạng Wi-Fi "Guest" thường chặn các máy nói chuyện với nhau. Windows phải đặt mạng là **Private**, nếu không tường lửa sẽ chặn.
 
 **Máy A — macOS**
@@ -73,8 +76,9 @@ IP đổi (đổi Wi-Fi, khởi động lại router): sửa lại hai dòng nà
 make all MACHINE=B          # build image, bật phuquoc + danang, chờ sẵn sàng
 
 # Máy A (macOS)
-make all                    # venv → build → bật nhatrang, dalat, ref → sinh dữ liệu → nạp mảnh (cả sang máy B)
-                            # → postgres_fdw + all_* → make check → make bench → mở nhập liệu + dashboard
+make all                    # venv → build → bật nhatrang, dalat, ref → secure (CA + chứng chỉ TLS cho 5 nút, kể cả máy B)
+                            # → sinh dữ liệu → nạp mảnh (cả sang máy B) → postgres_fdw qua TLS + all_* → make check
+                            # → make bench → mở nhập liệu + dashboard
 ```
 Máy A tự chờ (tối đa 10 phút) đến khi kết nối được hai trạm ở máy B, nên thứ tự chạy hai lệnh không bắt buộc.
 Xong: nhập liệu <http://localhost:8501>, dashboard <http://localhost:8502>. Từ máy sạch mất khoảng 3–4 phút.
@@ -97,9 +101,12 @@ python tools/onebox.py down           # gỡ hết;  --dry-run để xem trướ
 | Lệnh | Máy | Việc làm |
 |---|---|---|
 | `make up MACHINE=A\|B` | A / B | bật đúng các trạm của máy theo `deploy.toml` |
+| `make secure` | A | E3: CA nội bộ + chứng chỉ cho mọi nút (khoá sinh trong container của nút), `pg_hba` chỉ nhận TLS; chạy lại được |
 | `make data` | A | chạy bộ sinh của giảng viên (`--size mini` và `--size lab`, seed 402738) |
 | `make load` | A | nạp `ref` (lược đồ tập trung) + chia CSV thành mảnh và nạp vào 4 trạm; đối chiếu `summary.json` |
-| `make link` | A | `postgres_fdw` ở trạm trung tâm + khung nhìn `all_<bảng>` |
+| `make link` | A | `postgres_fdw` qua TLS `verify-full` (trạm xa: `fdw_reader` + chứng chỉ, không mật khẩu) + khung nhìn `all_<bảng>` |
+| `make tls-status` / `tls-test` | A | chứng chỉ, hạn, phiên fdw / 8 phép thử (không mã hoá, gọi bằng IP, thiếu/sai chứng chỉ, thử ghi đều bị từ chối) |
+| `make tls-off` | A | gỡ lỗi: tạm tắt TLS toàn hệ; bật lại `make secure && make link` |
 | `make check` | A | ba quy tắc đúng đắn, PK/FK toàn hệ, jsonb ⇄ bản quan hệ (D2) |
 | `make bench` | A | Q1–Q5 × {0, 30 ms}, 5 lần bỏ lần đầu lấy trung vị → `results/results.csv`, `results/explain/` |
 | `make delay-on` / `delay-off` | A | bật/tắt trễ 30 ms (tc netem ở trạm trung tâm, chỉ trên đường tới trạm xa) |
@@ -124,32 +131,24 @@ Khi đổi mạng (ví dụ chuyển sang điểm phát Wi-Fi): sửa IP trong `
 |---|---|---|
 | E1 | Bản sao dự phòng (streaming replication) của `phuquoc` đặt ở máy A; trạm chính chết thì postgres_fdw chuyển sang đọc bản sao | `make ext-replica` · `ext-replica-status` · `ext-failover` · `ext-failback` · `ext-watch` · `ext-replica-down` |
 | E2 | 2PC tạo đoàn tour có nhật ký điều phối bền vững; giả lập bộ điều phối chết và phục hồi giao dịch lưỡng lự | `make ext-2pc-crash CRASH=prepare\|decision\|mid-commit` · `ext-2pc-status` · `ext-2pc-recover [FORCE=1]` |
-| E3 | Đường postgres_fdw kiểu production khi các trạm ở các nơi khác nhau: CA nội bộ, TLS `verify-full` + chứng chỉ máy khách, tên DNS nội bộ, role `fdw_reader` chỉ đọc, không mật khẩu | lab: `make ext-secure` · `ext-secure-status` · `ext-secure-test` · `ext-secure-bench` · `ext-secure-down` <br> PRD (khoá không rời trạm): mỗi máy `ext-secure-site-csr` → máy A `ext-secure-sign` → mỗi máy `ext-secure-site-install` → máy A `ext-secure-link` |
 | — | So sánh phương án E1/E2 (sync/async, đọc chính/bản sao, chi phí 2PC) | `make ext-bench` → `results/ext/ext_bench.csv` |
 
-E1, E2 và E3 chế độ lab chỉ chạy ở máy A. **E3 chế độ PRD** chạy ở cả hai máy, mỗi máy chỉ thao tác trên trạm của mình:
+E1, E2 chạy ở máy A và đã được thử lại khi TLS bắt buộc (bản sao E1 nhận WAL qua TLS; failover đổi bản ghi DNS nội bộ).
+
+### Bảo mật đường truyền (E3) — mặc định, chi tiết ở [docs/BAO_MAT.md](docs/BAO_MAT.md)
+`make all` đã gồm `make secure`. Mỗi nút có chứng chỉ máy chủ `<nút>.db.nhom8.internal` do CA nội bộ ký; khoá riêng sinh trong container
+của nút và không rời khỏi đó (nút ở máy B được điều khiển qua kênh quản trị SQL; lệnh `openssl` vẫn chạy trong container ở máy B).
+
+**Chế độ chặt** (không ai cần quyền superuser qua mạng) — mỗi máy tự làm phần của mình:
 ```bash
-# 0. (máy A) cập nhật mã nguồn sang máy B
-make sync-remote SSH=<user>@<IP máy B> DEST=C:/cs5104/de06_hotel_ddb KEY=<khoá SSH>
-# 1. (máy A) CA nội bộ — một lần
-make ext-secure-ca-init
-# 2. (mỗi máy) sinh khoá TRONG container của trạm + CSR -> build/e3/exchange/*.csr
-make ext-secure-site-csr                    # máy B: phuquoc, danang · máy A: dalat
-make ext-secure-site-csr CLIENT=1           # máy A: chứng chỉ máy khách fdw_reader cho trạm trung tâm
-# 3. chép *.csr của máy B sang build/e3/exchange/ của máy A, rồi (máy A) ký
-make ext-secure-sign
-# 4. chép <trạm>.crt + ca.crt về build/e3/exchange/ của máy B, rồi (mỗi máy) cài
-make ext-secure-site-install                 # máy A thêm: make ext-secure-site-install CLIENT=1
-# 5. (máy A) nối postgres_fdw bằng TLS + chứng chỉ, kiểm tra
-make ext-secure-link && make ext-secure-test && make check
-# trạng thái / gia hạn / gỡ
-make ext-secure-site-status                  # cảnh báo khi chứng chỉ còn < 30 ngày
-make ext-secure-site-csr ROTATE=1            # gia hạn: rồi sign → install như trên
-make ext-secure-site-uninstall               # mỗi máy; sau đó (máy A) make ext-secure-down
+make tls-site-csr                    # mỗi máy: khoá + CSR -> build/e3/exchange/*.csr   (máy A thêm: CLIENT=1)
+make tls-sign                        # máy A: ký các CSR đã chép sang (container dùng một lần, không mạng)
+make tls-site-install                # mỗi máy: sau khi chép <nút>.crt + ca.crt về build/e3/exchange/   (máy A thêm: CLIENT=1)
+make link                            # máy A
+make tls-site-status                 # mỗi máy · gia hạn: tls-site-csr ROTATE=1 → tls-sign → tls-site-install
 ```
-Trên máy B (Windows), các lệnh `ext-secure-site-*` chỉ cần Python, không cần venv. Khi điều khiển qua SSH, gọi qua
+Trên máy B (Windows), các lệnh `tls-site-*` chỉ cần Python, không cần venv; khi điều khiển qua SSH thì gọi
 `powershell -File C:\cs5104\runB.ps1 <target>` (script bỏ credential helper của Docker, vốn lỗi trong phiên SSH).
-CSR và chứng chỉ là dữ liệu công khai, chép bằng scp, USB hoặc git đều được; khoá riêng không bao giờ rời container của trạm.
 
 ## 5. Cấu trúc thư mục
 
@@ -165,11 +164,11 @@ sql/queries/                      q1..q5 (bản phân tán), *_ref.sql (bản đ
 tools/                            deploy, split, load, link, check, bench, delay, demo, apps, rtt_slope (đo số vòng khứ hồi)
                                   onebox.py (chạy thử một máy, không cần make), latency_proxy.py (trễ dự phòng)
                                   sync_remote.py (cập nhật mã nguồn sang máy khác qua SSH)
-                                  phần mở rộng: ext_replica.py (E1), twopc.py (E2), ext_bench.py,
-                                  ext_secure.py (E3: lab, CA, ký, nối fdw), ext_secure_site.py (E3 PRD, chạy tại từng máy)
+                                  tls.py (E3: CA, ký, make secure, thử), tls_site.py (E3: một nút, chạy được tại từng máy)
+                                  phần mở rộng: ext_replica.py (E1), twopc.py (E2), ext_bench.py
 app/                              entry.py (nhập liệu), dash.py (dashboard) — Streamlit
 results/                          results.csv, explain/, n1/n4/n5_*.csv, check.txt, ext/ (nhật ký phần mở rộng)
-docs/                             BAO_CAO.md / .pdf, NANG_CAO.md (phần mở rộng), KIEN_THUC_BAO_VE.md, ảnh giao diện
+docs/                             BAO_CAO.md / .pdf, BAO_MAT.md (E3), NANG_CAO.md (phần mở rộng), KIEN_THUC_BAO_VE.md, ảnh giao diện
 build/                            (sinh ra, không vào git) image context, mảnh CSV, PKI của E3 (build/e3/: khoá CA)
 ```
 
@@ -177,7 +176,7 @@ build/                            (sinh ra, không vào git) image context, mả
 
 Branch `nhom8-de06-hotel-ddb` thay toàn bộ cây thư mục của `main` (bản thử nghiệm ban đầu) bằng bản `de06_hotel_ddb`,
 là bản đã chạy `make all` và đo trên hai máy thật. Branch giữ lại các ý hay của `main`: `onebox.py`, proxy trễ dự phòng
-và phép so sánh Q3 giữa đoàn một vùng và đoàn nhiều vùng. Sau đó bổ sung phần mở rộng E3.
+và phép so sánh Q3 giữa đoàn một vùng và đoàn nhiều vùng. Sau đó thêm E3 (TLS + chứng chỉ) và đưa E3 thành mặc định của hệ.
 
 ## 7. Sử dụng công cụ AI
 

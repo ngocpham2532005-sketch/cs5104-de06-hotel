@@ -63,7 +63,9 @@ Số dòng (cỡ lab): `hotel` 13/16/14/17 · `room` 1.193/1.662/1.387/1.758 · 
 | `tools/deploy.py` | `docker run` đúng các trạm của một máy, chờ sẵn sàng; stop/start một trạm. Chỉ dùng thư viện chuẩn |
 | `tools/split.py` | chia CSV tập trung thành mảnh: hotel theo `region`, rồi room → booking → req_* theo chuỗi khoá ngoại |
 | `tools/load.py` | chờ mọi trạm → nạp `ref` → nạp mảnh (COPY) → đối chiếu số dòng với `summary.json` → `results/n1_fragments.csv` |
-| `tools/link.py` | ở trạm trung tâm: `CREATE SERVER … postgres_fdw` (fetch_size 10000, async_capable, parallel_commit), `IMPORT FOREIGN SCHEMA`, view `all_*`; ANALYZE bảng ngoài |
+| `tools/tls.py` | E3: CA nội bộ (container dùng một lần, không mạng), `make secure` cấp chứng chỉ cho mọi nút, `tls-status`, `tls-test`, `tls-off`, `/etc/hosts` của trạm trung tâm |
+| `tools/tls_site.py` | E3: thao tác trên một nút (CSR, cài có kiểm tra/sao lưu/hoàn tác, trạng thái, gỡ); `docker exec` tại máy chứa nút hoặc kênh quản trị SQL từ máy A |
+| `tools/link.py` | ở trạm trung tâm: `CREATE SERVER … postgres_fdw` qua TLS (fetch_size 10000, async_capable, parallel_commit), `IMPORT FOREIGN SCHEMA`, view `all_*`; ANALYZE bảng ngoài |
 | `tools/check.py` | 6 nhóm kiểm tra (A–F), mọi truy vấn mong đợi 0 → `results/check.txt` |
 | `tools/bench.py` | Q1–Q5 và các biến thể × {0, 30 ms}; 5 lần, bỏ lần đầu, trung vị; EXPLAIN; N4, N5 |
 | `tools/delay.py` | `tc qdisc prio` + `netem delay 30ms` + bộ lọc u32 theo IP đích là trạm xa; `DELAY_MODE=proxy` dùng `latency_proxy.py` |
@@ -85,12 +87,13 @@ Số dòng (cỡ lab): `hotel` 13/16/14/17 · `room` 1.193/1.662/1.387/1.758 · 
 | 1 | `venv` (psycopg, streamlit, pandas) | — |
 | 2 | `build`: image `cs5104-pg18` | `build` |
 | 3 | `up A`: nhatrang, dalat, ref | `up B`: phuquoc, danang |
-| 4 | `data`: generate.py mini + lab (seed 402738) | — |
-| 5 | `load`: chờ máy B → split → nạp ref → nạp 4 trạm (sang máy B qua LAN) → đối chiếu summary.json | — |
-| 6 | `link`: fdw + all_* | — |
-| 7 | `check` (dừng nếu lỗi) | — |
-| 8 | `bench` → `results/` | — |
-| 9 | `apps-start`: 8501, 8502 | — |
+| 4 | `secure` (E3): chờ máy B → CA nội bộ → chứng chỉ máy chủ cho 5 nút + chứng chỉ máy khách `fdw_reader`; khoá sinh trong container của từng nút (máy B: qua kênh quản trị SQL); `pg_hba` chỉ nhận TLS | — (máy B không phải làm gì) |
+| 5 | `data`: generate.py mini + lab (seed 402738) | — |
+| 6 | `load`: split → nạp ref → nạp 4 trạm (sang máy B qua LAN, **TLS verify-full**) → đối chiếu summary.json | — |
+| 7 | `link`: DNS nội bộ ở trạm trung tâm + fdw qua TLS + all_* | — |
+| 8 | `check` (dừng nếu lỗi) | — |
+| 9 | `bench` → `results/` | — |
+| 10 | `apps-start`: 8501, 8502 (kết nối các trạm qua TLS) | — |
 
 Đã chạy thử từ máy sạch (gỡ hết container, volume, venv, dữ liệu) bằng `deploy.local.toml`: hết khoảng **3 phút 6 giây**,
 `make check` ĐẠT (103 phép kiểm tra), mọi biến thể Q1–Q5 đều cho kết quả giống CSDL đối chứng.
@@ -113,6 +116,8 @@ Cả ba phương án đều được giữ làm biến thể trong `make bench` 
 ### 5.2 Cấu hình postgres_fdw
 `fetch_size 10000` (ít lần FETCH hơn), `async_capable true` (hỏi các trạm xa song song),
 `parallel_commit true` (COMMIT tới các trạm song song, bớt 2 vòng khứ hồi), `connect_timeout 3` (trạm chết thì báo lỗi nhanh).
+E3 (mặc định): `host '<nút>.db.nhom8.internal'`, `sslmode 'verify-full'`, `sslrootcert`, `sslnegotiation 'direct'`; trạm xa dùng user mapping
+`fdw_reader` + `sslcert/sslkey` (không mật khẩu, chỉ SELECT), `ref` dùng `postgres` + mật khẩu qua TLS. Chi tiết: [docs/BAO_MAT.md](docs/BAO_MAT.md).
 
 ### 5.3 Giả lập trễ
 `netem` đặt trên eth0 của container trung tâm, chỉ áp cho gói có **đích là trạm xa** (bộ lọc u32 theo IP).
@@ -193,6 +198,7 @@ Trước buổi bảo vệ: hai máy đã `git pull`, đã chạy `make all` ít
 ## 11. Phần mở rộng (ngoài yêu cầu đề)
 
 > **Ghi chú:** phần này là làm thêm. Nó không thuộc D1–D8, không chạy trong `make all`, không thêm bảng hay cột.
+> E3 (TLS) **không** thuộc phần này: đã là mặc định, nằm trong `make all` (bước 4 ở trên, [docs/BAO_MAT.md](docs/BAO_MAT.md)).
 > Tắt hẳn (không chạy `make ext-*`) thì hệ giống hệt bản bắt buộc. Tài liệu đầy đủ, số đo, kịch bản trình bày: [docs/NANG_CAO.md](docs/NANG_CAO.md).
 
 | Mã | Làm gì | Vì sao | Điểm kỹ thuật |

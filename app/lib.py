@@ -20,10 +20,8 @@ def site_label(site: str) -> str:
 
 
 def connect(site: str, timeout: int = 2, autocommit: bool = True):
-    import psycopg
-    host, port = cfg.host_addr(site)
-    return psycopg.connect(host=host, port=port, dbname=cfg.db, user=cfg.user, password=cfg.password,
-                           connect_timeout=timeout, autocommit=autocommit, application_name="cs5104_app")
+    """Mọi kết nối của giao diện/dashboard đi qua TLS verify-full (E3) khi hệ bật TLS."""
+    return cfg.connect(site, timeout=timeout, autocommit=autocommit, app="cs5104_app")
 
 
 def log_event(kind: str, site: str, msg: str):

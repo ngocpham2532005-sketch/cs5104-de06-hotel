@@ -33,6 +33,8 @@ PK = {"room_type": ["room_type_code"], "tour_group": ["tour_group_id"], "hotel":
       "room": ["room_id"], "booking": ["booking_id"], "req_tour": ["booking_id"],
       "req_business": ["booking_id"], "req_family": ["booking_id"],
       "req_family_child": ["booking_id", "seq"]}
+PKI = ROOT / "build" / "e3"              # CA nội bộ (chỉ ở máy A) + thư mục trao đổi CSR/chứng chỉ
+TLS_OFF_MARK = PKI / "TLS_OFF"            # có tệp này (make tls-off) => tạm tắt TLS cho đến lần `make secure` sau
 ID_BLOCK = 10_000_000          # dải khoá chính cho dòng mới của mỗi trạm
 TOUR_GROUP_NEW_START = 100_001  # đoàn tour mới (sequence ở trạm trung tâm)
 
@@ -53,7 +55,9 @@ class Config:
         # PHẦN MỞ RỘNG (ngoài yêu cầu đề): bản sao dự phòng [ext.replica.<trạm>], chỉ make ext-* dùng tới
         self.replicas = {f"{s}_replica": dict(v, of=s)
                          for s, v in raw.get("ext", {}).get("replica", {}).items()}
-        self.secure = raw.get("ext", {}).get("secure", {})         # E3: [ext.secure]
+        # E3 — TLS cho mọi kết nối (mặc định BẬT): [tls] enabled, domain, cert_days
+        self.tls = raw.get("tls", {})
+        self.secure = self.tls                                       # tên cũ, giữ cho tương thích
         self.here = os.environ.get("MACHINE", "A")
         self.central = self.project["central"]
         self.db = self.project["db"]
@@ -105,14 +109,37 @@ class Config:
         m = self.machines[self.machine_of(name)]
         return m.get("docker_ip", m["ip"]), int(self.node(name)["port"])
 
-    def conninfo(self, name: str, timeout: int = 3) -> str:
-        host, port = self.host_addr(name)
-        return (f"host={host} port={port} dbname={self.db} user={self.user} "
-                f"password={self.password} connect_timeout={timeout} application_name=cs5104_tools")
+    # ---- TLS (E3)
+    @property
+    def tls_on(self) -> bool:
+        """TLS bắt buộc cho mọi kết nối qua mạng: bật trong deploy.toml, có CA, và chưa `make tls-off`."""
+        return (bool(self.tls.get("enabled", True)) and os.environ.get("CS5104_TLS", "1") != "0"
+                and (PKI / "ca.crt").exists() and not TLS_OFF_MARK.exists())
 
-    def connect(self, name: str, timeout: int = 3, autocommit: bool = True):
+    @property
+    def domain(self) -> str:
+        return self.tls.get("domain", "db.nhom8.internal")
+
+    def fqdn(self, name: str) -> str:
+        """Tên DNS nội bộ của nút (SAN trong chứng chỉ máy chủ). Bản sao dùng tên — và chứng chỉ — của trạm chính."""
+        base = self.replicas[name]["of"] if name in self.replicas else name
+        return f"{base}.{self.domain}"
+
+    def conninfo(self, name: str, timeout: int = 3, tls: str | None = None, app: str = "cs5104_tools") -> str:
+        """tls: None = theo cấu hình (verify-full khi E3 bật) · "prefer" = kênh khởi tạo trước khi trạm có chứng chỉ."""
+        host, port = self.host_addr(name)
+        base = (f"port={port} dbname={self.db} user={self.user} password={self.password} "
+                f"connect_timeout={timeout} application_name={app}")
+        if tls is None and self.tls_on:
+            # gọi bằng TÊN (kiểm tra SAN), nối tới IP qua hostaddr — không cần DNS ở máy chạy công cụ
+            return (f"host={self.fqdn(name)} hostaddr={host} {base} sslmode=verify-full "
+                    f"sslrootcert={PKI / 'ca.crt'}")
+        return f"host={host} {base} sslmode={tls or 'prefer'}"
+
+    def connect(self, name: str, timeout: int = 3, autocommit: bool = True, tls: str | None = None,
+                app: str = "cs5104_tools"):
         import psycopg
-        return psycopg.connect(self.conninfo(name, timeout), autocommit=autocommit)
+        return psycopg.connect(self.conninfo(name, timeout, tls, app), autocommit=autocommit)
 
     def label(self, name: str) -> str:
         m = self.machine_of(name)

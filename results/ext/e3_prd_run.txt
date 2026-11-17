@@ -1,3 +1,5 @@
+# Ghi chú (2026-11-17, sau khi E3 thành mặc định): tên lệnh trong nhật ký này là tên cũ. ext-secure-site-* nay là tls-site-*,
+# ext-secure-sign/ca-init nay là tls-sign/tls-ca-init, ext-secure/ext-secure-link nay nằm trong make secure + make link. Xem docs/BAO_MAT.md.
 E3 — chế độ PRD, chạy trên hai máy thật, 2026-11-17 (A = macOS 192.168.100.218, B = Windows 11 192.168.100.198)
 Trích nguyên văn output. Nhật ký máy: e3_site_A.log, e3_site_B.log. Nhật ký cấp phát của CA: build/e3/issued.jsonl (máy A, không vào git).
 

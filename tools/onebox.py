@@ -54,6 +54,7 @@ def all_():
     step(sys.executable, "tools/deploy.py", "build")
     step(sys.executable, "tools/deploy.py", "up", "B", machine="B")
     step(sys.executable, "tools/deploy.py", "up", "A")
+    step(VPY, "tools/tls.py", "secure")                 # E3: TLS + chứng chỉ cho mọi nút
     step(sys.executable, GEN, "--size", "mini")
     step(sys.executable, GEN, "--size", "lab")
     for t in ("load", "link", "check", "bench"):

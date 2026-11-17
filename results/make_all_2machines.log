@@ -3,18 +3,37 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -q -r requirements.txt
 python3 tools/deploy.py build
   $ docker build -q -t cs5104-pg18 /Users/daohung/MCS/CS5104/de06_hotel_ddb/docker
-sha256:2493ff47e3eabb6931fb91d09f7c54965ddc69c6eba47f9c0e287bb260505e13
+sha256:5765918e2b0e09a8c629cc8c7b096b2832d3643c93396e29c207ba08bc0f2be3
 python3 tools/deploy.py up A
   $ docker run -d --name cs5104_dalat --hostname dalat --network cs5104_net -p 0.0.0.0:5434:5432 -e POSTGRES_PASSWORD=cs5104 -e POSTGRES_USER=postgres -e POSTGRES_DB=hotel -e TZ=Asia/Ho_Chi_Minh -v cs5104_dalat_data:/var/lib/postgresql --cap-add NET_ADMIN --add-host host.docker.internal:host-gateway --label cs5104=de06 cs5104-pg18 -c max_prepared_transactions=20 -c shared_buffers=256MB -c max_connections=200
-00e8e864a99548d938dedf992c87ea5ceb44bdd1aaade7396b1464b8e0c8d1fd
+0c9ff8194c92515058c4ec7e795d44cbdcb4a1e7c69ea72e311f336d9084488c
   $ docker run -d --name cs5104_nhatrang --hostname nhatrang --network cs5104_net -p 0.0.0.0:5433:5432 -e POSTGRES_PASSWORD=cs5104 -e POSTGRES_USER=postgres -e POSTGRES_DB=hotel -e TZ=Asia/Ho_Chi_Minh -v cs5104_nhatrang_data:/var/lib/postgresql --cap-add NET_ADMIN --add-host host.docker.internal:host-gateway --label cs5104=de06 cs5104-pg18 -c max_prepared_transactions=20 -c shared_buffers=256MB -c max_connections=200
-db5292ded1c909a2dec3b7923825339e5ea4f408257b987ff7dbe2f10ebfde3d
+5814b9b08444556d3e3d648bac0212aae58ac7e62b50acce6dec2e6a100e0a6e
   $ docker run -d --name cs5104_ref --hostname ref --network cs5104_net -p 0.0.0.0:5440:5432 -e POSTGRES_PASSWORD=cs5104 -e POSTGRES_USER=postgres -e POSTGRES_DB=hotel -e TZ=Asia/Ho_Chi_Minh -v cs5104_ref_data:/var/lib/postgresql --cap-add NET_ADMIN --add-host host.docker.internal:host-gateway --label cs5104=de06 cs5104-pg18 -c max_prepared_transactions=20 -c shared_buffers=256MB -c max_connections=200
-acf196098a5d4e0fb95e14d3882789026f077e50626161dc7601404eaf1074fe
+b03fbc1760d164f1c07f9ec18488359a434a7ed2af1bb9983afc0e41e2f603ba
   dalat     sẵn sàng  (dalat @ máy A (macOS, 192.168.100.218:5434))
   nhatrang  sẵn sàng  (nhatrang @ máy A (macOS, 192.168.100.218:5433))
   ref       sẵn sàng  (ref @ máy A (macOS, 192.168.100.218:5440))
 Máy A (macOS): dalat, nhatrang, ref đang chạy.
+.venv/bin/python tools/tls.py secure 
+E3 · CA nội bộ
+  CA nội bộ đã có — dùng lại
+  CA 68:E3:3F:5D:63:05:20:23:60:0A…
+E3 · chờ mọi nút
+E3 · chứng chỉ máy chủ cho 5 nút (khoá sinh trong container của từng nút)
+  dalat     CN=dalat.db.nhom8.internal · ký serial 8aa473a49eb3… tới Feb 15 15:48:08 2027 GMT · cài qua docker exec
+  dalat     TLS 1.3 bật · phục vụ đúng chứng chỉ mới (sha256 F5:1A:07:C9:A6:8E:F1:CD…) · qua mạng chỉ nhận TLS · fdw_reader chỉ SELECT, chỉ bằng chứng chỉ
+  nhatrang  CN=nhatrang.db.nhom8.internal · ký serial c19e46bd253e… tới Feb 15 15:48:10 2027 GMT · cài qua docker exec
+  nhatrang  TLS 1.3 bật · phục vụ đúng chứng chỉ mới (sha256 2B:5E:99:F9:DD:D8:03:E5…) · qua mạng chỉ nhận TLS · fdw_reader chỉ SELECT, chỉ bằng chứng chỉ
+  phuquoc   CN=phuquoc.db.nhom8.internal · ký serial 1b8709155869… tới Feb 15 15:48:12 2027 GMT · cài qua kênh quản trị SQL
+  phuquoc   TLS 1.3 bật · phục vụ đúng chứng chỉ mới (sha256 2D:BF:0B:40:83:08:CF:63…) · qua mạng chỉ nhận TLS · fdw_reader chỉ SELECT, chỉ bằng chứng chỉ
+  danang    CN=danang.db.nhom8.internal · ký serial f9f9b875925a… tới Feb 15 15:48:15 2027 GMT · cài qua kênh quản trị SQL
+  danang    TLS 1.3 bật · phục vụ đúng chứng chỉ mới (sha256 2C:5D:FE:F1:AE:98:40:38…) · qua mạng chỉ nhận TLS · fdw_reader chỉ SELECT, chỉ bằng chứng chỉ
+  ref       CN=ref.db.nhom8.internal · ký serial 80b945b69858… tới Feb 15 15:48:18 2027 GMT · cài qua docker exec
+  ref       TLS 1.3 bật · phục vụ đúng chứng chỉ mới (sha256 58:1A:57:7D:07:6A:F8:49…) · qua mạng chỉ nhận TLS · fdw_reader chỉ SELECT, chỉ bằng chứng chỉ
+E3 · chứng chỉ máy khách fdw_reader cho trạm trung tâm nhatrang
+  nhatrang  chứng chỉ máy khách fdw_reader: đã cài (/var/lib/postgresql/18/docker/e3)
+E3 BẬT cho toàn hệ (12.4s). Mọi kết nối qua mạng: TLS ≥ 1.3, verify-full. Bước tiếp: make link (postgres_fdw qua TLS)
 python3 datagen/de06_hotel/generate.py --size mini
 Đề 6 · seed 402738 · cỡ mini → /Users/daohung/MCS/CS5104/de06_hotel_ddb/datagen/de06_hotel/output/mini
   room_type                         4
@@ -65,15 +84,184 @@ python3 datagen/de06_hotel/generate.py --size lab
   [OK]   dòng liên vùng = 5144 (rate 0.0643) khớp summary.json
 -> results/n1_fragments.csv
 .venv/bin/python tools/link.py
-Traceback (most recent call last):
-  File "/Users/daohung/MCS/CS5104/de06_hotel_ddb/tools/link.py", line 71, in <module>
-    main()
-  File "/Users/daohung/MCS/CS5104/de06_hotel_ddb/tools/link.py", line 55, in main
-    c.execute(sql)
-  File "/Users/daohung/MCS/CS5104/de06_hotel_ddb/.venv/lib/python3.11/site-packages/psycopg/connection.py", line 304, in execute
-    raise ex.with_traceback(None)
-psycopg.errors.SqlclientUnableToEstablishSqlconnection: could not connect to server "srv_phuquoc"
-DETAIL:  connection to server at "192.168.100.198", port 5435 failed: Connection refused
-	Is the server running on that host and accepting TCP/IP connections?
-make: *** [link] Error 1
-EXIT=2
+  DNS nội bộ (trạm trung tâm): 172.19.0.2 dalat.db.nhom8.internal
+  DNS nội bộ (trạm trung tâm): 192.168.100.198 phuquoc.db.nhom8.internal
+  DNS nội bộ (trạm trung tâm): 192.168.100.198 danang.db.nhom8.internal
+  DNS nội bộ (trạm trung tâm): 172.19.0.4 ref.db.nhom8.internal
+Trạm trung tâm nhatrang @ máy A (macOS, 192.168.100.218:5433)
+  foreign servers:
+    srv_dalat=host=dalat.db.nhom8.internal port=5432 dbname=hotel connect_timeout=3 sslmode=verify-full sslrootcert=/var/lib/postgresql/18/docker/e3/ca.crt sslnegotiation=direct fetch_size=10000 async_capable=true parallel_commit=true
+    srv_phuquoc=host=phuquoc.db.nhom8.internal port=5435 dbname=hotel connect_timeout=3 sslmode=verify-full sslrootcert=/var/lib/postgresql/18/docker/e3/ca.crt sslnegotiation=direct fetch_size=10000 async_capable=true parallel_commit=true
+    srv_danang=host=danang.db.nhom8.internal port=5436 dbname=hotel connect_timeout=3 sslmode=verify-full sslrootcert=/var/lib/postgresql/18/docker/e3/ca.crt sslnegotiation=direct fetch_size=10000 async_capable=true parallel_commit=true
+    srv_ref=host=ref.db.nhom8.internal port=5432 dbname=hotel connect_timeout=3 sslmode=verify-full sslrootcert=/var/lib/postgresql/18/docker/e3/ca.crt sslnegotiation=direct fetch_size=10000
+  khung nhìn toàn cục: all_booking, all_hotel, all_req_business, all_req_family, all_req_family_child, all_req_tour, all_room
+  -> sql/generated_link.sql
+.venv/bin/python tools/check.py
+A. Ba quy tắc đúng đắn (7 bảng bị chia)
+  [OK  ] hotel             đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] hotel             tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] hotel             tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] hotel             rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] room              đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] room              tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] room              tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] room              rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] booking           đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] booking           tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] booking           tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] booking           rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] req_tour          đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] req_tour          tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] req_tour          tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] req_tour          rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] req_business      đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] req_business      tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] req_business      tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] req_business      rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] req_family        đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] req_family        tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] req_family        tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] req_family        rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] req_family_child  đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] req_family_child  tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] req_family_child  tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] req_family_child  rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+B. Bảng sao chép giống hệt bảng gốc ở mọi trạm
+  [OK  ] room_type         @ nhatrang : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] room_type         @ dalat    : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] room_type         @ phuquoc  : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] room_type         @ danang   : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] tour_group        @ nhatrang : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] tour_group        @ dalat    : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] tour_group        @ phuquoc  : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] tour_group        @ danang   : bản sao ≠ ref (hai chiều)  (= 0)
+C. Đúng mảnh tại từng trạm (đọc thẳng từng trạm)
+  [OK  ] dalat     hotel.region ≠ vùng của trạm  (= 0)
+  [OK  ] dalat     room mồ côi (hotel không ở trạm)  (= 0)
+  [OK  ] dalat     booking mồ côi (room không ở trạm)  (= 0)
+  [OK  ] dalat     req_* mồ côi (booking không ở trạm)  (= 0)
+  [OK  ] dalat     req_family_child mồ côi  (= 0)
+  [OK  ] dalat     booking_id mới ngoài dải của trạm  (= 0)
+  [OK  ] dalat     CHECK/FK khai báo nhưng chưa VALID  (= 0)
+  [OK  ] nhatrang  hotel.region ≠ vùng của trạm  (= 0)
+  [OK  ] nhatrang  room mồ côi (hotel không ở trạm)  (= 0)
+  [OK  ] nhatrang  booking mồ côi (room không ở trạm)  (= 0)
+  [OK  ] nhatrang  req_* mồ côi (booking không ở trạm)  (= 0)
+  [OK  ] nhatrang  req_family_child mồ côi  (= 0)
+  [OK  ] nhatrang  booking_id mới ngoài dải của trạm  (= 0)
+  [OK  ] nhatrang  CHECK/FK khai báo nhưng chưa VALID  (= 0)
+  [OK  ] phuquoc   hotel.region ≠ vùng của trạm  (= 0)
+  [OK  ] phuquoc   room mồ côi (hotel không ở trạm)  (= 0)
+  [OK  ] phuquoc   booking mồ côi (room không ở trạm)  (= 0)
+  [OK  ] phuquoc   req_* mồ côi (booking không ở trạm)  (= 0)
+  [OK  ] phuquoc   req_family_child mồ côi  (= 0)
+  [OK  ] phuquoc   booking_id mới ngoài dải của trạm  (= 0)
+  [OK  ] phuquoc   CHECK/FK khai báo nhưng chưa VALID  (= 0)
+  [OK  ] danang    hotel.region ≠ vùng của trạm  (= 0)
+  [OK  ] danang    room mồ côi (hotel không ở trạm)  (= 0)
+  [OK  ] danang    booking mồ côi (room không ở trạm)  (= 0)
+  [OK  ] danang    req_* mồ côi (booking không ở trạm)  (= 0)
+  [OK  ] danang    req_family_child mồ côi  (= 0)
+  [OK  ] danang    booking_id mới ngoài dải của trạm  (= 0)
+  [OK  ] danang    CHECK/FK khai báo nhưng chưa VALID  (= 0)
+D. Khoá chính, khoá ngoại trên toàn hệ
+  [OK  ] room.hotel_id → hotel  (= 0)
+  [OK  ] room.room_type_code → room_type  (= 0)
+  [OK  ] booking.room_id → room  (= 0)
+  [OK  ] booking.tour_group_id → tour_group  (= 0)
+  [OK  ] req_tour → booking(tour)  (= 0)
+  [OK  ] req_business → booking(business)  (= 0)
+  [OK  ] req_family → booking(family)  (= 0)
+  [OK  ] req_family_child → req_family  (= 0)
+  [OK  ] PK toàn hệ: room_type, tour_group trùng  (= 0)
+E. jsonb ↔ bản quan hệ nhất quán (từng trạm)
+  [OK  ] dalat     tour      jsonb ⇄ quan hệ  (= 0)
+  [OK  ] dalat     business  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] dalat     family    jsonb ⇄ quan hệ  (= 0)
+  [OK  ] dalat     children  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] nhatrang  tour      jsonb ⇄ quan hệ  (= 0)
+  [OK  ] nhatrang  business  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] nhatrang  family    jsonb ⇄ quan hệ  (= 0)
+  [OK  ] nhatrang  children  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] phuquoc   tour      jsonb ⇄ quan hệ  (= 0)
+  [OK  ] phuquoc   business  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] phuquoc   family    jsonb ⇄ quan hệ  (= 0)
+  [OK  ] phuquoc   children  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] danang    tour      jsonb ⇄ quan hệ  (= 0)
+  [OK  ] danang    business  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] danang    family    jsonb ⇄ quan hệ  (= 0)
+  [OK  ] danang    children  jsonb ⇄ quan hệ  (= 0)
+F. Dữ liệu gốc của bộ sinh khớp summary.json
+  [OK  ] room_type         số dòng gốc  (15 / summary.json 15)
+  [OK  ] hotel             số dòng gốc  (60 / summary.json 60)
+  [OK  ] room              số dòng gốc  (6000 / summary.json 6000)
+  [OK  ] tour_group        số dòng gốc  (800 / summary.json 800)
+  [OK  ] booking           số dòng gốc  (80000 / summary.json 80000)
+  [OK  ] req_tour          số dòng gốc  (36124 / summary.json 36124)
+  [OK  ] req_business      số dòng gốc  (27933 / summary.json 27933)
+  [OK  ] req_family        số dòng gốc  (15943 / summary.json 15943)
+  [OK  ] req_family_child  số dòng gốc  (23956 / summary.json 23956)
+  [OK  ] hotel @ dalat      (13 / summary.json 13)
+  [OK  ] hotel @ nhatrang   (16 / summary.json 16)
+  [OK  ] hotel @ phuquoc    (14 / summary.json 14)
+  [OK  ] hotel @ danang     (17 / summary.json 17)
+  [OK  ] dòng liên vùng (đoàn ≥ 2 vùng)  (5144 / summary.json 5144)
+
+KẾT LUẬN: ĐẠT · 8.6s
+.venv/bin/python tools/bench.py
+N2/N3 · Q1–Q5 (5 lần, bỏ lần đầu, trung vị)
+TRỄ TẮT.
+  Q1 site_dalat             trễ  0 ms  trung vị      0.60 ms     13 dòng  đúng=✓  trạm xa: -
+  Q1 central_all_views      trễ  0 ms  trung vị    232.56 ms     13 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 two_phase              trễ  0 ms  trung vị     74.97 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 two_phase_no_async     trễ  0 ms  trung vị    170.61 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 two_phase_no_parallel_commit trễ  0 ms  trung vị    101.69 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 base_join              trễ  0 ms  trung vị    294.61 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 base_join_remote_est   trễ  0 ms  trung vị    409.30 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 naive_all_views        trễ  0 ms  trung vị    293.37 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 naive_fetch100         trễ  0 ms  trung vị   1847.40 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q3 pushdown               trễ  0 ms  trung vị     91.20 ms     46 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q3 pushdown_no_async      trễ  0 ms  trung vị     90.78 ms     46 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q3 naive_all_views        trễ  0 ms  trung vị    196.56 ms     46 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q3 single_region_group    trễ  0 ms  trung vị     83.71 ms     45 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q4 jsonb_all_views        trễ  0 ms  trung vị     76.94 ms   3413 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q5 relational_view        trễ  0 ms  trung vị     84.82 ms   3413 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q5 base_join              trễ  0 ms  trung vị    460.79 ms   3413 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+TRỄ BẬT: +30 ms mỗi vòng khứ hồi từ nhatrang tới dalat (172.19.0.2), phuquoc (192.168.100.198), danang (192.168.100.198)
+  Q1 site_dalat             trễ 30 ms  trung vị      0.55 ms     13 dòng  đúng=✓  trạm xa: -
+  Q1 central_all_views      trễ 30 ms  trung vị   1334.98 ms     13 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 two_phase              trễ 30 ms  trung vị    458.92 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 two_phase_no_async     trễ 30 ms  trung vị    536.16 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 two_phase_no_parallel_commit trễ 30 ms  trung vị    515.44 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 base_join              trễ 30 ms  trung vị   1221.13 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 base_join_remote_est   trễ 30 ms  trung vị   2681.66 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 naive_all_views        trễ 30 ms  trung vị   1225.81 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q2 naive_fetch100         trễ 30 ms  trung vị   8520.58 ms     60 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q3 pushdown               trễ 30 ms  trung vị    433.24 ms     46 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q3 pushdown_no_async      trễ 30 ms  trung vị    510.33 ms     46 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q3 naive_all_views        trễ 30 ms  trung vị   1018.92 ms     46 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q3 single_region_group    trễ 30 ms  trung vị    431.20 ms     45 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q4 jsonb_all_views        trễ 30 ms  trung vị    442.64 ms   3413 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q5 relational_view        trễ 30 ms  trung vị    432.55 ms   3413 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+  Q5 base_join              trễ 30 ms  trung vị   1985.34 ms   3413 dòng  đúng=✓  trạm xa: dalat danang phuquoc
+TRỄ TẮT.
+N3 · chi phí một lượt hỏi tối thiểu tới từng trạm xa
+TRỄ TẮT.
+  PROBE dalat     (máy A) trễ  0 ms  trung vị     0.30 ms
+  PROBE phuquoc   (máy B) trễ  0 ms  trung vị    41.97 ms
+  PROBE danang    (máy B) trễ  0 ms  trung vị    44.44 ms
+TRỄ BẬT: +30 ms mỗi vòng khứ hồi từ nhatrang tới dalat (172.19.0.2), phuquoc (192.168.100.198), danang (192.168.100.198)
+  PROBE dalat     (máy A) trễ 30 ms  trung vị   164.55 ms
+  PROBE phuquoc   (máy B) trễ 30 ms  trung vị   200.89 ms
+  PROBE danang    (máy B) trễ 30 ms  trung vị   214.32 ms
+TRỄ TẮT.
+-> results/results.csv, results/explain/
+N4 · dòng liên vùng
+  N4: 5144/80000 lượt đặt liên vùng = 6.43%; 115 đoàn đi ≥ 2 vùng; đoàn 1: {'danang': 10, 'nhatrang': 14, 'phuquoc': 22}
+N5 · dung lượng jsonb so với bản quan hệ, có/không GIN (trên CSDL đối chứng)
+  N5: booking_rows=80000, jsonb_request_bytes=6172653, jsonb_bytes_tour=2384184, jsonb_avg_bytes_tour=66.0, jsonb_bytes_business=2402364, jsonb_avg_bytes_business=86.0, jsonb_bytes_family=1386105, jsonb_avg_bytes_family=86.9, relational_heap_bytes=4964352, relational_total_bytes_with_pk=7520256, relational_rows=103956, booking_heap_bytes=12713984, q4_ref_no_gin_ms=5.294, q5_ref_ms=4.582, gin_jsonb_path_ops_bytes=2179072, q4_ref_gin_jsonb_path_ops_ms=2.341, gin_jsonb_ops_bytes=2916352, q4_ref_gin_jsonb_ops_ms=3.066
+.venv/bin/python tools/apps.py start
+  entry -> http://localhost:8501  (pid 48673, log results/logs/entry.log)
+  dash  -> http://localhost:8502  (pid 48674, log results/logs/dash.log)
+Hệ đã dựng xong. Nhập liệu: http://localhost:8501   Dashboard: http://localhost:8502
+make all  5.54s user 2.68s system 2% cpu 4:34.73 total

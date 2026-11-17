@@ -1,12 +1,12 @@
-Sort (actual time=5.531..5.612 rows=3413.00 loops=1)
+Sort (actual time=5.806..5.876 rows=3413.00 loops=1)
   Sort Key: booking_id
   Sort Method: quicksort  Memory: 251kB
   Buffers: shared hit=1555
-  ->  Seq Scan on booking b (actual time=0.006..5.337 rows=3413.00 loops=1)
+  ->  Seq Scan on booking b (actual time=0.008..5.590 rows=3413.00 loops=1)
         Filter: ((request @> '{"airport_pickup": true}'::jsonb) AND (request @? '$."children_ages"[*]?(@ < 6)'::jsonpath) AND (guest_type = 'family'::text))
         Rows Removed by Filter: 76587
         Buffers: shared hit=1552
 Planning:
   Buffers: shared hit=165
-Planning Time: 0.249 ms
-Execution Time: 5.693 ms
+Planning Time: 0.197 ms
+Execution Time: 5.961 ms

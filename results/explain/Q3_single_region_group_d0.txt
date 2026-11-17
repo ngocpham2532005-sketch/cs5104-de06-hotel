@@ -1,26 +1,26 @@
 -- Q3 · single_region_group · chạy tại nhatrang · trễ 0 ms
-Sort (actual time=27.520..27.535 rows=45.00 loops=1)
+Sort (actual time=33.939..33.944 rows=45.00 loops=1)
   Output: b.booking_id, b.check_in, b.nights, h.region, h.name, r.room_id, r.room_type_code, b.guest_name, ((b.request ->> 'meal_plan'::text))
   Sort Key: b.check_in, b.booking_id
   Sort Method: quicksort  Memory: 29kB
   Buffers: shared hit=3
-  ->  Append (actual time=27.457..27.492 rows=45.00 loops=1)
+  ->  Append (actual time=33.922..33.931 rows=45.00 loops=1)
         Buffers: shared hit=3
-        ->  Hash Join (actual time=0.102..0.108 rows=0.00 loops=1)
+        ->  Hash Join (actual time=0.043..0.046 rows=0.00 loops=1)
               Output: b.booking_id, b.check_in, b.nights, h.region, h.name, r.room_id, r.room_type_code, b.guest_name, (b.request ->> 'meal_plan'::text)
               Inner Unique: true
               Hash Cond: (r.hotel_id = h.hotel_id)
               Buffers: shared hit=3
-              ->  Hash Join (actual time=0.029..0.033 rows=0.00 loops=1)
+              ->  Hash Join (actual time=0.013..0.015 rows=0.00 loops=1)
                     Output: b.booking_id, b.check_in, b.nights, b.guest_name, b.request, r.room_id, r.room_type_code, r.hotel_id
                     Inner Unique: true
                     Hash Cond: (b.room_id = r.room_id)
                     Buffers: shared hit=2
-                    ->  Bitmap Heap Scan on public.booking b (actual time=0.027..0.028 rows=0.00 loops=1)
+                    ->  Bitmap Heap Scan on public.booking b (actual time=0.012..0.013 rows=0.00 loops=1)
                           Output: b.booking_id, b.room_id, b.guest_name, b.check_in, b.nights, b.guest_type, b.tour_group_id, b.request
                           Recheck Cond: (b.tour_group_id = 3)
                           Buffers: shared hit=2
-                          ->  Bitmap Index Scan on booking_tg_idx (actual time=0.018..0.019 rows=0.00 loops=1)
+                          ->  Bitmap Index Scan on booking_tg_idx (actual time=0.009..0.009 rows=0.00 loops=1)
                                 Index Cond: (b.tour_group_id = 3)
                                 Index Searches: 1
                                 Buffers: shared hit=2
@@ -28,26 +28,26 @@ Sort (actual time=27.520..27.535 rows=45.00 loops=1)
                           Output: r.room_id, r.room_type_code, r.hotel_id
                           ->  Seq Scan on public.room r (never executed)
                                 Output: r.room_id, r.room_type_code, r.hotel_id
-              ->  Hash (actual time=0.049..0.049 rows=16.00 loops=1)
+              ->  Hash (actual time=0.022..0.022 rows=16.00 loops=1)
                     Output: h.region, h.name, h.hotel_id
                     Buckets: 1024  Batches: 1  Memory Usage: 10kB
                     Buffers: shared hit=1
-                    ->  Seq Scan on public.hotel h (actual time=0.034..0.037 rows=16.00 loops=1)
+                    ->  Seq Scan on public.hotel h (actual time=0.016..0.017 rows=16.00 loops=1)
                           Output: h.region, h.name, h.hotel_id
                           Buffers: shared hit=1
-        ->  Async Foreign Scan (actual time=0.950..0.950 rows=0.00 loops=1)
+        ->  Async Foreign Scan (actual time=0.280..0.280 rows=0.00 loops=1)
               Output: b_1.booking_id, b_1.check_in, b_1.nights, h_1.region, h_1.name, r_1.room_id, r_1.room_type_code, b_1.guest_name, (b_1.request ->> 'meal_plan'::text)
               Relations: ((s_dalat.booking b_1) INNER JOIN (s_dalat.room r_1)) INNER JOIN (s_dalat.hotel h_1)
               Remote SQL: SELECT r1.booking_id, r1.check_in, r1.nights, r4.region, r4.name, r2.room_id, r2.room_type_code, r1.guest_name, r1.request FROM ((public.booking r1 INNER JOIN public.room r2 ON (((r1.room_id = r2.room_id)) AND ((r1.tour_group_id = 3)))) INNER JOIN public.hotel r4 ON (((r2.hotel_id = r4.hotel_id))))
-        ->  Async Foreign Scan (actual time=5.935..5.935 rows=0.00 loops=1)
+        ->  Async Foreign Scan (actual time=7.973..7.973 rows=0.00 loops=1)
               Output: b_2.booking_id, b_2.check_in, b_2.nights, h_2.region, h_2.name, r_2.room_id, r_2.room_type_code, b_2.guest_name, (b_2.request ->> 'meal_plan'::text)
               Relations: ((s_phuquoc.booking b_2) INNER JOIN (s_phuquoc.room r_2)) INNER JOIN (s_phuquoc.hotel h_2)
               Remote SQL: SELECT r1.booking_id, r1.check_in, r1.nights, r4.region, r4.name, r2.room_id, r2.room_type_code, r1.guest_name, r1.request FROM ((public.booking r1 INNER JOIN public.room r2 ON (((r1.room_id = r2.room_id)) AND ((r1.tour_group_id = 3)))) INNER JOIN public.hotel r4 ON (((r2.hotel_id = r4.hotel_id))))
-        ->  Async Foreign Scan (actual time=8.096..8.113 rows=45.00 loops=1)
+        ->  Async Foreign Scan (actual time=13.406..13.409 rows=45.00 loops=1)
               Output: b_3.booking_id, b_3.check_in, b_3.nights, h_3.region, h_3.name, r_3.room_id, r_3.room_type_code, b_3.guest_name, (b_3.request ->> 'meal_plan'::text)
               Relations: ((s_danang.booking b_3) INNER JOIN (s_danang.room r_3)) INNER JOIN (s_danang.hotel h_3)
               Remote SQL: SELECT r1.booking_id, r1.check_in, r1.nights, r4.region, r4.name, r2.room_id, r2.room_type_code, r1.guest_name, r1.request FROM ((public.booking r1 INNER JOIN public.room r2 ON (((r1.room_id = r2.room_id)) AND ((r1.tour_group_id = 3)))) INNER JOIN public.hotel r4 ON (((r2.hotel_id = r4.hotel_id))))
 Planning:
   Buffers: shared hit=16
-Planning Time: 0.410 ms
-Execution Time: 53.607 ms
+Planning Time: 0.122 ms
+Execution Time: 62.644 ms

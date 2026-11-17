@@ -12,7 +12,10 @@
 |---|---|---|---|---|---|
 | **E1** | Bản sao dự phòng cho mảnh + chuyển đọc khi trạm chết | #5 "một trạm chết thì dữ liệu vùng đó không đọc được" | Ch.5 sao chép (streaming replication, hot standby) | `tools/ext_replica.py` | `make ext-replica`, `ext-failover`, `ext-failback`, `ext-watch`, `ext-replica-status`, `ext-replica-down` |
 | **E2** | 2PC có nhật ký điều phối bền vững + phục hồi giao dịch lưỡng lự | #1 "2PC có thể treo nếu bộ điều phối chết sau PREPARE" | Ch.4 cam kết hai pha, presumed abort | `tools/twopc.py` (giao diện nhập liệu dùng chung) | `make ext-2pc-crash CRASH=…`, `ext-2pc-status`, `ext-2pc-recover` |
-| **E3** | Đường postgres_fdw kiểu production: mTLS `verify-full`, DNS nội bộ, role chỉ đọc, không mật khẩu | trạm ở các nơi khác nhau: dữ liệu đi rõ, xác thực bằng IP + mật khẩu superuser | Ch.1 kiến trúc phân tán; PostgreSQL SSL, `pg_hba` `cert` | `tools/ext_secure.py` | `make ext-secure`, `ext-secure-status`, `ext-secure-test`, `ext-secure-bench`, `ext-secure-down` |
+
+> **E3 (bảo mật đường truyền) không còn là phần mở rộng:** từ 2026-11-17 TLS + chứng chỉ là **mặc định của hệ** và nằm trong `make all`.
+> Tài liệu riêng: [docs/BAO_MAT.md](BAO_MAT.md). E1, E2 đã được chạy lại khi TLS bắt buộc: bản sao E1 nhận WAL qua TLS 1.3,
+> failover đổi bản ghi DNS nội bộ để giữ `verify-full`; E2 phục hồi đúng.
 
 Tệp đã thêm hoặc sửa cho phần mở rộng:
 
@@ -24,9 +27,6 @@ Tệp đã thêm hoặc sửa cho phần mở rộng:
 | `tools/common.py` | `Config` đọc `[ext.replica.*]` (nút `phuquoc_replica` dùng chung `host_addr`/`docker_addr`) |
 | `tools/deploy.py` | `make down` xoá luôn container + volume bản sao nếu có |
 | `app/entry.py` | tab "Thêm đoàn tour (2PC)" gọi `twopc.create_tour_group()`; thêm khung "Giao dịch lưỡng lự" có nút phục hồi |
-| `tools/ext_secure_site.py` | **mới** — E3 chế độ PRD, chạy tại từng máy (chỉ thư viện chuẩn + docker) |
-| `tools/sync_remote.py` | **mới** — `make sync-remote`: cập nhật mã nguồn sang máy khác qua SSH, so mã băm hai đầu |
-| `tools/ext_secure.py` | **mới** — E3; `deploy*.toml` thêm `[ext.secure] domain`; `tools/common.py` đọc `cfg.secure` |
 | `tools/ext_bench.py` | **mới** — `make ext-bench`: so sánh phương án của E1, E2 (mục *Đánh giá* bên dưới) |
 | `Makefile` | nhóm lệnh `ext-*`, `make ext-help` |
 | `results/ext/` | nhật ký chạy thử trên hai máy thật |
@@ -154,141 +154,6 @@ make ext-2pc-status && make check     # sạch, vẫn ĐẠT
 - Nhật ký là một tệp trên máy A. Mất đĩa máy A thì mất quyết định. Bản thật sẽ đặt nhật ký trên lưu trữ bền có sao chép.
 - Phục hồi chạy khi được gọi (lệnh hoặc nút trong giao diện), không phải tiến trình nền. Các trạm cũng không tự hỏi nhau
   (không có cooperative termination).
-
----
-
-## E3 — Đường postgres_fdw kiểu production khi các trạm ở các nơi khác nhau
-
-### Vấn đề
-Trong lab, hai máy chung một Wi-Fi. `postgres_fdw` nối tới trạm xa bằng **IP**, **không mã hoá**, bằng **superuser `postgres`**,
-và **mật khẩu nằm trong `deploy.toml`**. Khi các trạm ở các nơi khác nhau, mỗi điểm này là một lỗ hổng:
-- dữ liệu khách (tên, mã số thuế trong `req_business`) đi qua mạng dạng rõ;
-- ai giả được IP của trạm là đánh lừa được trạm trung tâm;
-- lộ một mật khẩu là mất quyền superuser trên mọi trạm;
-- IP đổi là phải `make link` lại.
-
-Lớp mạng (WireGuard, site-to-site VPN, Tailscale hoặc Headscale) giải quyết chuyện *đi tới được*. E3 làm phần
-**không tin mạng** ở chính lớp CSDL, nên vẫn đúng dù đường hầm VPN có bị lộ.
-
-### Cách làm (`tools/ext_secure.py`, `make ext-secure`)
-```
- build/e3/ (chỉ ở máy A, không vào git)          trạm xa (dalat, phuquoc, danang) — cấu hình qua SQL, máy B không phải làm gì
-   ca.key, ca.crt  ── ký ──►  <trạm>.crt  ─────►  ssl = on, ssl_min_protocol_version = TLSv1.3, ssl_ca_file = ca.crt
-                   └─ ký ──►  fdw_reader.crt       role fdw_reader: LOGIN, chỉ SELECT; không có mật khẩu
-                                                   pg_hba (đầu tệp):  hostssl   hotel fdw_reader all cert
-                                                                      hostnossl all   fdw_reader all reject
- trạm trung tâm nhatrang
-   /etc/hosts: <trạm>.db.nhom8.internal -> IP     (giả lập vùng DNS nội bộ)
-   srv_<trạm>:  host '<trạm>.db.nhom8.internal', sslmode 'verify-full', sslrootcert ca.crt, sslnegotiation 'direct'
-   user mapping: user 'fdw_reader', sslcert/sslkey — KHÔNG còn password
-```
-- **PKI nội bộ:** CA ECDSA P-256 (openssl trong container trung tâm, sau đó chép ra `build/e3/` và xoá khỏi container).
-  Chứng chỉ máy chủ có SAN là **tên** trạm, không có IP. Vì vậy `verify-full` vừa kiểm tra chứng chỉ do CA của nhóm ký,
-  vừa kiểm tra đúng tên máy. Chứng chỉ máy khách có `CN=fdw_reader`, nên phương thức `cert` của `pg_hba` ánh xạ thẳng CN sang role.
-- **Quyền tối thiểu:** `fdw_reader` chỉ có `CONNECT`, `USAGE` và `SELECT`. Q1–Q5 và `make check` chỉ đọc qua fdw.
-  Ghi (nhập liệu, 2PC tạo đoàn) vẫn đi thẳng tới trạm như trước.
-- **Không còn mật khẩu trong đường fdw:** user mapping dùng cặp khoá/chứng chỉ; khoá riêng nằm ở trạm trung tâm với quyền 0600.
-- **Tên thay IP:** IP của máy B đổi thì chỉ cần sửa bản ghi tên, không phải `make link`. Bản thật dùng một vùng DNS riêng
-  (Route 53 private zone, CoreDNS, MagicDNS của Tailscale); trong lab giả lập bằng `/etc/hosts` của container trung tâm.
-- **`sslnegotiation=direct` (PostgreSQL ≥ 17):** bắt tay TLS ngay (ALPN `postgresql`), bỏ một vòng `SSLRequest`.
-- **An toàn khi bật chung:** `up` từ chối nếu `srv_*` đang bị `ext-failover` hoặc `DELAY_MODE=proxy` sửa.
-  `make ext-secure-down` (hoặc `make link`) trả `srv_*` về như cũ, tắt TLS, xoá role và các dòng `pg_hba` đã thêm.
-
-### Kết quả (hai máy thật, 2026-11-17) — `results/ext/e3_run.txt`, `results/ext/e3_bench.csv`
-`make ext-secure-test` thử từ máy A tới `phuquoc` (máy B) qua mạng thật: **7/7 ĐẠT**.
-
-| Phép thử | Mong đợi | Thực tế |
-|---|---|---|
-| T1 tên đúng + CA nội bộ + chứng chỉ máy khách | vào được | OK (TLSv1.3) |
-| T2 như T1, `sslnegotiation=direct` | vào được | OK (TLSv1.3) |
-| T3 không mã hoá (`sslmode=disable`) | từ chối | `pg_hba.conf rejects connection … no encryption` |
-| T4 gọi bằng IP (`verify-full`) | từ chối | `server certificate for "phuquoc.db.nhom8.internal" … does not match host name` |
-| T5 có TLS nhưng không có chứng chỉ máy khách | từ chối | `connection requires a valid client certificate` |
-| T6 chứng chỉ `CN=fdw_reader` nhưng do CA lạ ký | từ chối | `tlsv1 alert unknown ca` |
-| T7 `fdw_reader` thử `UPDATE` | từ chối | `permission denied for table room_type` |
-
-Khi E3 bật, `make ext-secure-status` thấy cả ba phiên fdw ở trạm xa là `fdw_reader`, TLSv1.3, `TLS_AES_256_GCM_SHA384`, `client_dn=/O=Nhom 8 CS5104/CN=fdw_reader`.
-`make check` ĐẠT và `make q` cho Q1–Q5 khớp đối chứng.
-
-**Chi phí** (`make ext-secure-bench`; mỗi chế độ 9 phiên mới; "mở kết nối" = lần chạy đầu của phiên trừ trung vị các lần sau):
-
-| Trễ | Chế độ | Mở kết nối fdw | Truy vấn nhỏ khi đã mở | Q2 lần đầu / trung vị |
-|---:|---|---:|---:|---:|
-| 0 | không mã hoá + SCRAM (`make link`) | +114 ms | 41 ms | 336 / 97 ms |
-| 0 | TLS + chứng chỉ | +96 ms | 45 ms | 320 / 102 ms |
-| 0 | TLS direct + chứng chỉ | +85 ms | 40 ms | 298 / 75 ms |
-| 30 | không mã hoá + SCRAM | **+469 ms** | 203 ms | 1.764 / 456 ms |
-| 30 | TLS + chứng chỉ | **+382 ms** | 209 ms | 1.541 / 428 ms |
-| 30 | TLS direct + chứng chỉ | **+340 ms** | 207 ms | 1.401 / 458 ms |
-
-- **TLS chỉ tốn lúc mở kết nối.** Khi đã mở, ba chế độ chênh nhau trong biên dao động của Wi-Fi (truy vấn nhỏ 203–209 ms, Q2 428–458 ms):
-  mã hoá AES-GCM có tăng tốc phần cứng nên gần như không tốn gì. `postgres_fdw` giữ kết nối suốt phiên, nên Bảng 3 không đổi.
-- **Mở kết nối có TLS còn nhanh hơn kết nối không mã hoá.** Bắt tay TLS 1.3 tốn 1 vòng (cộng 1 vòng `SSLRequest`).
-  Xác thực `cert` lại bỏ được 2 vòng trao đổi SASL của SCRAM và phần băm PBKDF2 4096 lần ở hai đầu, nên tổng cộng rẻ hơn.
-- **`direct` bỏ đúng một vòng:** 382 → 340 ms (−42 ms ≈ 1,4 × 30 ms).
-- Lần đầu Q2 (mở 3 kết nối) giảm từ 1.764 xuống 1.401 ms (−21%). Lợi này có ích khi trạm trung tâm phục vụ nhiều phiên ngắn.
-
-### Kịch bản trình bày (≈ 2 phút, SAU D8)
-1. `make ext-secure` → đọc 3 dòng `srv_* -> <trạm>.db.nhom8.internal (verify-full, …)`.
-2. `make ext-secure-status` → phiên fdw ở trạm xa là `fdw_reader`, TLSv1.3, có `client_dn`; user mapping `password=không`.
-3. `make ext-secure-test` → 7/7 ĐẠT. Nhấn vào T4 (gọi bằng IP bị từ chối: chống giả mạo trạm) và T7 (không ghi được).
-4. `make q QUERIES=Q2` → vẫn khớp đối chứng. Tắt: `make ext-secure-down`.
-
-### Chế độ PRD — khoá riêng không rời khỏi trạm (`tools/ext_secure_site.py`)
-Chế độ lab ở trên tiện để demo, nhưng có hai điểm không đạt chuẩn production:
-1. khoá riêng của phuquoc và danang được sinh ở máy A rồi gửi qua mạng;
-2. máy A phải có superuser kèm mật khẩu tới máy B, lại dùng `COPY … TO PROGRAM`, tức là chạy được lệnh shell trên máy B.
-
-Chế độ PRD tách vai trò theo luồng cấp chứng chỉ thông thường. Mỗi máy chỉ thao tác trên trạm của chính nó, bằng `docker exec` tại chỗ:
-```
- MÁY CHỨA TRẠM (B: phuquoc, danang · A: dalat)        MÁY A — CA (container dùng một lần, --network none)
- make ext-secure-site-csr                              make ext-secure-ca-init        (một lần; CA 5 năm, pathlen:0)
-   khoá EC P-256 sinh TRONG container (umask 077)
-   -> build/e3/exchange/<trạm>.csr  + sha256  ───────► make ext-secure-sign
-                                                         · kiểm chữ ký CSR (CSR bị sửa -> từ chối)
-                                                         · CHÍNH SÁCH: chỉ CN = <trạm xa>.<domain> | fdw_reader
-                                                         · CA tự đặt SAN/EKU/hạn 90 ngày, serial ngẫu nhiên 128 bit
- make ext-secure-site-install  ◄──── <trạm>.crt + ca.crt   · ghi build/e3/issued.jsonl (kiểm toán, thu hồi)
-   1. kiểm: chuỗi CA, khớp khoá chờ, CN/SAN, EKU, còn hạn
-   2. sao lưu pg_hba.conf, postgresql.auto.conf, chứng chỉ cũ -> e3/backup/<thời điểm>/
-   3. cp + mv nguyên tử; ALTER SYSTEM (psql qua unix socket, không qua mạng); role fdw_reader; pg_hba; reload
-   4. kiểm sau reload: pg_hba không lỗi, TLSv1.3 thật, máy chủ PHỤC VỤ đúng vân tay chứng chỉ mới (s_client + ALPN)
-   lỗi ở 3–4 => tự HOÀN TÁC về bản sao lưu; khoá chờ giữ lại để sửa xong cài lại
- máy A: make ext-secure-site-csr CLIENT=1 → sign → make ext-secure-site-install CLIENT=1 → make ext-secure-link
-```
-- **Trao đổi giữa hai máy chỉ có CSR và chứng chỉ, đều là dữ liệu công khai** (scp, USB, git…). Hai đầu in cùng mã sha256 của CSR để đối chiếu.
-  Máy A không cần quyền superuser qua mạng tới máy B.
-- **Gia hạn hoặc đổi khoá khi hệ đang chạy:** `make ext-secure-site-csr ROTATE=1` → `sign` → `install`. Khi cài xong, kết nối mới dùng chứng chỉ mới;
-  `make ext-secure-site-status` cảnh báo khi còn dưới 30 ngày.
-- **Gỡ:** `make ext-secure-site-uninstall` ở từng máy (giữ `e3/backup/`), sau đó `make ext-secure-down` ở máy A.
-- **Cập nhật script trên từng máy:** `make sync-remote SSH=<user>@<máy> DEST=<thư mục repo> KEY=<khoá>` (`tools/sync_remote.py`).
-  Lệnh gói mã nguồn, gửi bằng scp, giải nén bằng `tar` có sẵn trên Windows, không đụng tới `build/` của máy đích, rồi so mã băm
-  `ext_secure_site.py --version` ở hai đầu. Khi repo đã ở GitHub thì mỗi máy chỉ cần `git pull` theo tag.
-  Trên máy B, các lệnh `ext-secure-site-*` chỉ cần Python, không cần venv (`runB.ps1 <target>`).
-
-**Chạy thử trên hai máy thật (2026-11-17)** — `results/ext/e3_prd_run.txt`, `e3_site_A.log`, `e3_site_B.log`:
-mã băm CSR của máy B khớp lúc ký ở máy A; cả 3 trạm cài đạt mọi bước kiểm; `make ext-secure-link` nối được 3 trạm; `make ext-secure-test` **7/7**;
-`make check` ĐẠT; Q1–Q5 khớp đối chứng. Phép thử âm cho chính quy trình:
-
-| | Tình huống | Kết quả |
-|---|---|---|
-| N1 | CSR xin `CN=postgres` | CA từ chối ký (ngoài chính sách) |
-| N2 | CSR bị sửa một ký tự | CA từ chối (chữ ký CSR sai) |
-| N3 | Đổi khoá nhưng cài lại chứng chỉ cũ | từ chối cài (không khớp khoá chờ); trạm vẫn phục vụ chứng chỉ cũ |
-| N4 | Lỗi sau reload (`E3_FAULT=after-reload`, điểm tiêm lỗi chỉ dùng khi thử) | tự hoàn tác; vân tay chứng chỉ không đổi; fdw vẫn chạy; khoá chờ còn nguyên |
-| N5 | Cài lại không lỗi = đổi khoá khi hệ đang chạy | vân tay đổi `F5:53…` → `EF:B8…`; fdw tới dalat vẫn chạy |
-| N6 | Máy B gỡ TLS trong khi `srv_*` vẫn đòi `verify-full` | Q2 báo lỗi, không lặng lẽ quay về kết nối không mã hoá (fail-closed) |
-
-### Giới hạn còn lại của E3
-- Các tool chạy trên máy A (nạp, kiểm tra, nhập liệu, dashboard) vẫn dùng `postgres` với mật khẩu, không bắt buộc TLS. Bản thật nên cho
-  mỗi ứng dụng một role và một chứng chỉ riêng, đồng thời chỉ cho `postgres` đăng nhập từ `localhost`.
-- Mật khẩu `postgres` vẫn nằm trong `deploy.toml`. Bản thật lấy từ secret manager (Vault, Docker secrets, biến môi trường của CI).
-- Khoá CA nằm ở `build/e3/` trên máy A, chỉ được dùng trong container một lần không có mạng. Bản thật để CA trên máy ngoại tuyến hoặc HSM,
-  hoặc dùng step-ca/Vault PKI để tự gia hạn. Chưa có CRL/OCSP: muốn thu hồi thì phải đổi CA, hoặc gỡ dòng `pg_hba` của chứng chỉ đó
-  (`issued.jsonl` có serial để làm CRL sau này).
-- Chế độ lab `make ext-secure` vẫn sinh khoá trạm ở máy A. Chỉ dùng để demo nhanh; chế độ PRD mới là cách đúng.
-- `/etc/hosts` của container mất khi container trung tâm khởi động lại; chạy lại `make ext-secure` (lệnh chạy lặp được, dùng lại PKI cũ).
-- Đường `ref` và đường sao chép của E1 chưa đi qua TLS.
 
 ---
 

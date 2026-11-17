@@ -1,0 +1,10 @@
+Thử tới phuquoc @ máy B (Windows 11, 192.168.100.198:5435):
+  [ĐẠT] T1 đủ: tên đúng + CA nội bộ + chứng chỉ máy khách: OK (TLSv1.3)
+  [ĐẠT] T2 đủ, direct TLS (PG ≥ 17, bỏ một vòng SSLRequest): OK (TLSv1.3)
+  [ĐẠT] T3 không mã hoá (sslmode=disable): TỪ CHỐI: FATAL:  pg_hba.conf rejects connection for host "172.19.0.1", user "fdw_reader", database "hotel", no encryption
+  [ĐẠT] T4 gọi bằng IP, không bằng tên (verify-full): TỪ CHỐI: server certificate for "phuquoc.db.nhom8.internal" (and 1 other name) does not match host name "192.168.100.198"
+  [ĐẠT] T5 TLS nhưng không có chứng chỉ máy khách: TỪ CHỐI: FATAL:  connection requires a valid client certificate
+  [ĐẠT] T6 chứng chỉ CN=fdw_reader do CA lạ ký: TỪ CHỐI: SSL error: tlsv1 alert unknown ca
+  [ĐẠT] T8 quản trị viên postgres + đúng mật khẩu nhưng KHÔNG mã hoá: TỪ CHỐI: FATAL:  pg_hba.conf rejects connection for host "172.19.0.1", user "postgres", database "hotel", no encryption
+  [ĐẠT] T7 fdw_reader thử UPDATE: TỪ CHỐI: permission denied for table room_type
+KẾT QUẢ: 8/8 ĐẠT

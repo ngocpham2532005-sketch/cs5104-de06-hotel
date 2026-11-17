@@ -11,9 +11,9 @@ relational_heap_bytes,4964352
 relational_total_bytes_with_pk,7520256
 relational_rows,103956
 booking_heap_bytes,12713984
-q4_ref_no_gin_ms,5.223
-q5_ref_ms,4.513
+q4_ref_no_gin_ms,5.294
+q5_ref_ms,4.582
 gin_jsonb_path_ops_bytes,2179072
-q4_ref_gin_jsonb_path_ops_ms,2.383
+q4_ref_gin_jsonb_path_ops_ms,2.341
 gin_jsonb_ops_bytes,2916352
-q4_ref_gin_jsonb_ops_ms,3.013
+q4_ref_gin_jsonb_ops_ms,3.066

@@ -1,10 +1,10 @@
 truy vấn                  T30 (ms)  T60 (ms)  số RTT = ΔT/30
-PROBE dalat                  160.2     301.4             4.7
-PROBE phuquoc                194.3     354.4             5.3
-PROBE danang                 200.1     353.2             5.1
-Q2 two_phase                 431.6     761.7            11.0
-Q2 two_phase_no_async        550.2     941.2            13.0
-Q2 no_parallel_commit        504.4     894.4            13.0
-Q3 pushdown                  413.5     759.5            11.5
-Q4 jsonb                     436.1     819.0            12.8
-Q5 view                      430.0     889.0            15.3
+PROBE dalat                  165.0     311.9             4.9
+PROBE phuquoc                207.9     357.4             5.0
+PROBE danang                 202.4     360.7             5.3
+Q2 two_phase                 477.6     804.4            10.9
+Q2 two_phase_no_async        566.1     935.3            12.3
+Q2 no_parallel_commit        501.2     892.6            13.0
+Q3 pushdown                  433.3     754.9            10.7
+Q4 jsonb                     442.0     904.6            15.4
+Q5 view                      457.3     925.8            15.6

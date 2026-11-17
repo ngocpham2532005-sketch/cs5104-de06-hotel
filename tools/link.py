@@ -7,13 +7,19 @@ Kết quả ở trạm trung tâm (nhatrang):
   schema ref                         : bảng ngoài trỏ tới CSDL đối chứng (để make check so sánh bằng SQL)
   public.all_<bảng>                  : UNION ALL mảnh cục bộ + mảnh ở 3 trạm xa (7 bảng bị chia)
 SQL sinh ra được ghi lại vào sql/generated_link.sql để đọc/đưa vào báo cáo.
+
+E3 (mặc định): mọi srv_* gọi nút bằng TÊN <nút>.<domain> (DNS nội bộ ở trạm trung tâm), sslmode=verify-full,
+sslnegotiation=direct; trạm xa: user fdw_reader + chứng chỉ máy khách, KHÔNG mật khẩu (pg_hba `cert`, chỉ SELECT);
+ref: postgres + mật khẩu qua TLS. `make tls-off` => như cũ (IP/tên container, không mã hoá).
 """
 from common import ALL_TABLES, FRAGMENTED, ROOT, Config
+from tls_site import ROLE, SUBDIR
 
 SITE_VIEWS = ["booking_detail", "family_request_detail"]   # khung nhìn cục bộ ở mỗi trạm (site_schema.sql)
 
 
-def build_sql(cfg: Config) -> str:
+def build_sql(cfg: Config, cdir: str | None = None) -> str:
+    """cdir: thư mục chứng chỉ (ca.crt, fdw_reader.*) trong container trạm trung tâm; None => không TLS."""
     lines = ["-- Sinh tự động bởi tools/link.py từ " + cfg.path.name,
              "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"]
     for t in FRAGMENTED:
@@ -23,7 +29,11 @@ def build_sql(cfg: Config) -> str:
         host, port = cfg.docker_addr(n)
         srv = f"srv_{n}"
         schema = "ref" if n == "ref" else f"s_{n}"
+        if cdir:
+            host = cfg.fqdn(n)
         opts = [f"host '{host}'", f"port '{port}'", f"dbname '{cfg.db}'", "connect_timeout '3'"]
+        if cdir:
+            opts += ["sslmode 'verify-full'", f"sslrootcert '{cdir}/ca.crt'", "sslnegotiation 'direct'"]
         if n != "ref":
             # Ch.3 §3.4.4: lô lớn -> ít vòng khứ hồi; hỏi song song các trạm xa
             # parallel_commit: COMMIT tới các trạm xa gửi song song thay vì lần lượt (PG ≥ 15)
@@ -31,11 +41,15 @@ def build_sql(cfg: Config) -> str:
         else:
             opts += ["fetch_size '10000'"]
         imported = ALL_TABLES + ([] if n == "ref" else SITE_VIEWS)
+        if cdir and n != "ref":
+            um = f"user '{ROLE}', sslcert '{cdir}/{ROLE}.crt', sslkey '{cdir}/{ROLE}.key'"
+        else:
+            um = f"user '{cfg.user}', password '{cfg.password}'"
         lines += [
             f"DROP SCHEMA IF EXISTS {schema} CASCADE;",
             f"DROP SERVER IF EXISTS {srv} CASCADE;",
             f"CREATE SERVER {srv} FOREIGN DATA WRAPPER postgres_fdw OPTIONS ({', '.join(opts)});",
-            f"CREATE USER MAPPING FOR {cfg.user} SERVER {srv} OPTIONS (user '{cfg.user}', password '{cfg.password}');",
+            f"CREATE USER MAPPING FOR {cfg.user} SERVER {srv} OPTIONS ({um});",
             f"CREATE SCHEMA {schema};",
             f"IMPORT FOREIGN SCHEMA public LIMIT TO ({', '.join(imported)}) FROM SERVER {srv} INTO {schema};",
         ]
@@ -49,7 +63,14 @@ def build_sql(cfg: Config) -> str:
 
 def main():
     cfg = Config()
-    sql = build_sql(cfg)
+    cdir = None
+    if cfg.tls_on:
+        import tls
+        for l in tls.set_hosts(cfg):
+            print(f"  DNS nội bộ (trạm trung tâm): {l}")
+        with cfg.connect(cfg.central) as c:
+            cdir = c.execute("SHOW data_directory").fetchone()[0] + "/" + SUBDIR
+    sql = build_sql(cfg, cdir)
     (ROOT / "sql" / "generated_link.sql").write_text(sql, encoding="utf-8")
     with cfg.connect(cfg.central) as c:
         c.execute(sql)

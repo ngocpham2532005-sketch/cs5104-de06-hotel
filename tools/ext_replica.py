@@ -101,6 +101,8 @@ def up(cfg: Config, site: str, rep: str):
          "-p", f"0.0.0.0:{cfg.node(rep)['port']}:5432",
          "--user", "postgres", "--entrypoint", "bash",
          "-e", f"PGDATA={pgdata}", "-e", f"PGUSER={cfg.user}", "-e", f"PGPASSWORD={cfg.password}",
+         # E3: trạm chính từ chối replication không mã hoá => pg_basebackup và walreceiver đi qua TLS
+         "-e", f"PGSSLMODE={'require' if cfg.tls_on else 'prefer'}",
          "-e", f"PRIMARY_HOST={host}", "-e", f"PRIMARY_PORT={port}", "-e", f"SLOT={slot_name(site)}",
          "-e", "TZ=Asia/Ho_Chi_Minh",
          "-v", f"{cfg.volume(rep)}:/var/lib/postgresql",
@@ -138,6 +140,14 @@ def fdw_target(cfg: Config, site: str) -> str:
 
 def point_fdw(cfg: Config, site: str, node: str) -> str:
     host, port = cfg.docker_addr(node)
+    if cfg.tls_on:
+        # E3: srv_* luôn gọi bằng TÊN (verify-full). Chuyển đọc = đổi bản ghi DNS nội bộ <trạm>.<domain> sang
+        # IP của bản sao (bản sao có cùng chứng chỉ máy chủ do pg_basebackup chép cả thư mục dữ liệu).
+        import tls
+        tls.set_hosts(cfg, override={site: node})
+        with cfg.connect(cfg.central) as c:
+            c.execute(f"ALTER SERVER srv_{site} OPTIONS (SET port '{port}')")
+        return f"{cfg.fqdn(site)} -> {host}:{port}"
     with cfg.connect(cfg.central) as c:
         c.execute(f"ALTER SERVER srv_{site} OPTIONS (SET host '{host}', SET port '{port}')")
     return f"{host}:{port}"

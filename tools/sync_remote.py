@@ -6,7 +6,7 @@
 
 - Gói mã nguồn (không gói .venv, build/, dữ liệu sinh ra, nhật ký) thành một tệp tar, gửi bằng scp, giải nén bằng `tar`
   (có sẵn trên Windows 10+, macOS, Linux). Không đụng tới build/ ở máy đích: CSR/chứng chỉ của máy đó giữ nguyên.
-- Sau khi giải nén, chạy `tools/ext_secure_site.py --version` ở máy đích và so mã băm với máy này.
+- Sau khi giải nén, chạy `tools/tls_site.py --version` ở máy đích và so mã băm với máy này.
 Khi repo đã ở GitHub, cách chuẩn là `git pull` ở mỗi máy (tag `final`); script này dùng khi máy đích chưa có git.
 Thông tin SSH (user, host, khoá) chỉ truyền qua tham số, không ghi vào repo.
 """
@@ -56,13 +56,13 @@ def main():
     # hai lệnh riêng: chạy được cả trong PowerShell 5.1 (không có &&) lẫn sh
     r = subprocess.run(["ssh", *opt, a.ssh, f"tar -xf {dest}/.sync.tar -C {dest}"], capture_output=True, text=True)
     if r.returncode == 0:
-        r = subprocess.run(["ssh", *opt, a.ssh, f"{a.python} {dest}/tools/ext_secure_site.py --version"],
+        r = subprocess.run(["ssh", *opt, a.ssh, f"{a.python} {dest}/tools/tls_site.py --version"],
                            capture_output=True, text=True)
     local_tar.unlink()
     if r.returncode != 0:
         sys.exit(f"LỖI ở máy đích: {r.stderr.strip() or r.stdout.strip()}")
     remote = r.stdout.strip().splitlines()[-1]
-    here = subprocess.run([sys.executable, str(ROOT / "tools" / "ext_secure_site.py"), "--version"],
+    here = subprocess.run([sys.executable, str(ROOT / "tools" / "tls_site.py"), "--version"],
                           capture_output=True, text=True).stdout.strip()
     print(f"  máy đích: {remote}\n  máy này : {here}")
     if remote != here:

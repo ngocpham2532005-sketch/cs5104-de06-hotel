@@ -854,7 +854,7 @@ Mỗi thành viên tự đánh dấu. Ô nào chưa chắc thì đọc lại m�
 
 ---
 
-## 14. Phần mở rộng E1, E2, E3 — ngoài yêu cầu đề
+## 14. Phần mở rộng E1, E2 (ngoài yêu cầu đề) và E3 (bảo mật đường truyền, nay là mặc định)
 
 > **Đề không yêu cầu phần này.** Nhóm làm thêm để khắc phục hai giới hạn ở Mục 8 (#1 và #5). Phần này không nằm trong `make all`,
 > không thêm bảng hay cột, không đổi D1–D8 hay N1–N5. Tài liệu gốc: [NANG_CAO.md](NANG_CAO.md); báo cáo §5.6.
@@ -1003,21 +1003,24 @@ make ext-2pc-recover && make check    # commit nốt theo nhật ký; vẫn Đ�
     (`tools/latency_proxy.py`). Kết quả gần như `tc` (Q2 430 so với 436 ms) vì mỗi vòng khứ hồi vẫn chậm thêm đúng 30 ms. Khác biệt:
     proxy chạy ở máy chủ (thêm một chặng container → host), và chỉ áp cho kết nối postgres_fdw chứ không phải mọi gói.
 
+64b. **Vì sao E3 thành mặc định?** Đề yêu cầu hai máy thật; khi các trạm ở các nơi khác nhau thì dữ liệu khách đi qua mạng.
+    Chi phí TLS chỉ nằm ở lúc mở kết nối (mở bằng TLS + chứng chỉ còn nhanh hơn không mã hoá + SCRAM), nên không có lý do để tắt.
+    Mọi số đo trong báo cáo (Bảng 3) đã đo lại khi bật TLS.
 65. **E3 làm gì, khác VPN thế nào?** VPN (WireGuard, Tailscale) lo phần *đi tới được* và mã hoá đường hầm. E3 lo phần *tin ai* ở chính lớp CSDL:
     trạm xa chỉ nhận `fdw_reader` khi kết nối có TLS và chứng chỉ máy khách do CA của nhóm ký; trạm trung tâm chỉ nói chuyện với
     máy có chứng chỉ đúng tên (`verify-full`). Lộ VPN hay giả IP vẫn không vào được (T3–T6).
 66. **Vì sao gọi bằng IP lại bị từ chối (T4)?** Chứng chỉ máy chủ chỉ có SAN là tên `phuquoc.db.nhom8.internal`. `verify-full` so tên
     đã gọi với SAN, nên gọi bằng IP thì không khớp. Nhờ vậy kẻ chiếm được IP mà không có khoá riêng của trạm sẽ không giả làm trạm được.
-67. **TLS làm chậm truy vấn bao nhiêu?** Gần như không: khi kết nối đã mở, Q2 428–458 ms ở cả ba chế độ (dao động Wi-Fi). TLS chỉ tốn lúc mở kết nối,
+67. **TLS làm chậm truy vấn bao nhiêu?** Gần như không: Bảng 3 đo lại khi bật TLS, Q2 459 ms so với 436 ms không TLS, Q3 433 so với 423 (±5%, dao động Wi-Fi); số vòng Q2 10,9 so với 11,0. TLS chỉ tốn lúc mở kết nối,
     và mở bằng TLS + `cert` còn nhanh hơn không mã hoá + SCRAM (382 so với 469 ms ở trễ 30 ms), vì bỏ được 2 vòng SASL.
     `sslnegotiation=direct` bỏ thêm vòng `SSLRequest` (340 ms).
 68. **Vì sao `fdw_reader` chỉ có SELECT?** Mọi thứ đi qua fdw (Q1–Q5, `make check`) đều chỉ đọc; ghi đi thẳng tới trạm. Lộ khoá của trạm
     trung tâm thì kẻ tấn công cũng chỉ đọc được, không sửa hay xoá được mảnh (T7).
-69. **Còn thiếu gì để thật sự production?** Mật khẩu `postgres` vẫn trong `deploy.toml` (nên dùng secret manager); các tool quản trị chưa
-    bắt buộc TLS; CA nên để ngoại tuyến, chứng chỉ ngắn hạn tự gia hạn và có thu hồi; DNS thật thay cho `/etc/hosts`.
-
-70. **Chế độ lab và chế độ PRD của E3 khác nhau thế nào?** Lab: máy A sinh mọi khoá rồi đẩy sang trạm bằng superuser qua mạng. PRD: khoá sinh trong
-    container của chính trạm và không bao giờ ra ngoài; máy B chỉ gửi CSR (công khai) và nhận chứng chỉ (công khai); máy A không cần quyền gì trên máy B.
+69. **Còn thiếu gì để thật sự production?** Mật khẩu `postgres` vẫn trong `deploy.toml` (nên dùng secret manager và mỗi ứng dụng một role);
+    CA nên để ngoại tuyến, chứng chỉ ngắn hạn tự gia hạn và có thu hồi (CRL/OCSP); DNS thật thay cho `/etc/hosts`.
+70. **`make all` cấp chứng chỉ cho máy B thế nào mà khoá không rời máy B?** Máy A gửi lệnh qua kênh quản trị SQL (`COPY … FROM PROGRAM`):
+    `openssl genpkey` chạy TRONG container của trạm ở máy B, chỉ CSR quay về máy A, chỉ chứng chỉ được gửi sang. Muốn không ai có
+    superuser qua mạng thì dùng chế độ chặt: mỗi máy tự `make tls-site-csr` / `tls-site-install`, máy A chỉ `make tls-sign`.
 71. **CA ký thế nào cho an toàn?** Trong container dùng một lần, `--network none`, chỉ gắn `build/e3/`. CA kiểm chữ ký CSR và áp chính sách
     (chỉ CN của 3 trạm xa hoặc `fdw_reader`), tự đặt SAN/EKU, cấp hạn 90 ngày, serial ngẫu nhiên, ghi `issued.jsonl`. CSR xin `CN=postgres` bị từ chối (N1).
 72. **Cài lỗi giữa chừng thì sao?** Trước khi cài đã sao lưu `pg_hba.conf`, `postgresql.auto.conf` và chứng chỉ cũ. Sau reload, script kiểm tra lại:

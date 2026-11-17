@@ -1,45 +1,45 @@
 -- Q5 · relational_view · chạy tại nhatrang · trễ 0 ms
-Sort (actual time=35.857..36.011 rows=3413.00 loops=1)
+Sort (actual time=46.212..46.299 rows=3413.00 loops=1)
   Output: b.booking_id, b.guest_name, b.check_in
   Sort Key: b.booking_id
   Sort Method: quicksort  Memory: 251kB
   Buffers: shared hit=6001
-  ->  Append (actual time=16.261..35.254 rows=3413.00 loops=1)
+  ->  Append (actual time=19.385..45.937 rows=3413.00 loops=1)
         Buffers: shared hit=6001
-        ->  Merge Join (actual time=0.056..8.491 rows=849.00 loops=1)
+        ->  Merge Join (actual time=0.026..3.024 rows=849.00 loops=1)
               Output: b.booking_id, b.guest_name, b.check_in
               Inner Unique: true
               Merge Cond: (b.booking_id = f.booking_id)
               Buffers: shared hit=6001
-              ->  Index Scan using booking_pkey on public.booking b (actual time=0.017..3.033 rows=20082.00 loops=1)
+              ->  Index Scan using booking_pkey on public.booking b (actual time=0.008..1.042 rows=20082.00 loops=1)
                     Output: b.booking_id, b.room_id, b.guest_name, b.check_in, b.nights, b.guest_type, b.tour_group_id, b.request
                     Index Searches: 1
                     Buffers: shared hit=435
-              ->  Index Scan using req_family_pkey on public.req_family f (actual time=0.033..3.756 rows=849.00 loops=1)
+              ->  Index Scan using req_family_pkey on public.req_family f (actual time=0.015..1.320 rows=849.00 loops=1)
                     Output: f.booking_id, f.extra_bed, f.airport_pickup
                     Filter: (f.airport_pickup AND ((SubPlan 1) < 6))
                     Rows Removed by Filter: 3329
                     Index Searches: 1
                     Buffers: shared hit=5566
                     SubPlan 1
-                      ->  Aggregate (actual time=0.001..0.001 rows=1.00 loops=2019)
+                      ->  Aggregate (actual time=0.000..0.000 rows=1.00 loops=2019)
                             Output: min(c.age)
                             Buffers: shared hit=5534
-                            ->  Index Scan using req_family_child_pkey on public.req_family_child c (actual time=0.001..0.001 rows=1.47 loops=2019)
+                            ->  Index Scan using req_family_child_pkey on public.req_family_child c (actual time=0.000..0.000 rows=1.47 loops=2019)
                                   Output: c.booking_id, c.seq, c.age
                                   Index Cond: (c.booking_id = f.booking_id)
                                   Index Searches: 2019
                                   Buffers: shared hit=5534
-        ->  Async Foreign Scan on s_dalat.family_request_detail (actual time=0.933..0.997 rows=686.00 loops=1)
+        ->  Async Foreign Scan on s_dalat.family_request_detail (actual time=0.342..0.371 rows=686.00 loops=1)
               Output: family_request_detail.booking_id, family_request_detail.guest_name, family_request_detail.check_in
               Remote SQL: SELECT booking_id, guest_name, check_in FROM public.family_request_detail WHERE (airport_pickup) AND ((youngest_child_age < 6))
-        ->  Async Foreign Scan on s_phuquoc.family_request_detail family_request_detail_1 (actual time=7.877..7.977 rows=822.00 loops=1)
+        ->  Async Foreign Scan on s_phuquoc.family_request_detail family_request_detail_1 (actual time=11.803..11.837 rows=822.00 loops=1)
               Output: family_request_detail_1.booking_id, family_request_detail_1.guest_name, family_request_detail_1.check_in
               Remote SQL: SELECT booking_id, guest_name, check_in FROM public.family_request_detail WHERE (airport_pickup) AND ((youngest_child_age < 6))
-        ->  Async Foreign Scan on s_danang.family_request_detail family_request_detail_2 (actual time=11.279..11.377 rows=1056.00 loops=1)
+        ->  Async Foreign Scan on s_danang.family_request_detail family_request_detail_2 (actual time=14.944..14.988 rows=1056.00 loops=1)
               Output: family_request_detail_2.booking_id, family_request_detail_2.guest_name, family_request_detail_2.check_in
               Remote SQL: SELECT booking_id, guest_name, check_in FROM public.family_request_detail WHERE (airport_pickup) AND ((youngest_child_age < 6))
 Planning:
   Buffers: shared hit=12
-Planning Time: 0.210 ms
-Execution Time: 61.213 ms
+Planning Time: 0.075 ms
+Execution Time: 77.581 ms

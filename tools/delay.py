@@ -73,10 +73,21 @@ def is_on(cfg: Config) -> bool:
 
 
 # ---------------------------------------------------------------- DELAY_MODE=proxy
-def set_servers(cfg: Config, addrs: dict):
+def set_servers(cfg: Config, addrs: dict, via_proxy: bool):
     with cfg.connect(cfg.central) as c:
         for s, (host, port) in addrs.items():
-            c.execute(f"ALTER SERVER srv_{s} OPTIONS (SET host '{host}', SET port '{port}')")
+            if not cfg.tls_on:
+                c.execute(f"ALTER SERVER srv_{s} OPTIONS (SET host '{host}', SET port '{port}')")
+                continue
+            # E3: giữ host = tên (verify-full vẫn kiểm chứng chỉ), chỉ đổi đích TCP bằng hostaddr; TLS đi xuyên proxy
+            cur = dict(o.split("=", 1) for o in c.execute(
+                "SELECT srvoptions FROM pg_foreign_server WHERE srvname = %s", [f"srv_{s}"]).fetchone()[0])
+            if via_proxy:
+                ip = __import__("tls").resolve_in_central(cfg, host)
+                act = f"{'SET' if 'hostaddr' in cur else 'ADD'} hostaddr '{ip}', SET port '{port}'"
+            else:
+                act = ("DROP hostaddr, " if "hostaddr" in cur else "") + f"SET port '{port}'"
+            c.execute(f"ALTER SERVER srv_{s} OPTIONS ({act})")
 
 
 def proxy_on(cfg: Config):
@@ -97,7 +108,7 @@ def proxy_on(cfg: Config):
     if p.poll() is not None:
         PROXY_STATE.unlink()
         die("proxy không chạy được, xem build/delay_proxy.log")
-    set_servers(cfg, addrs)
+    set_servers(cfg, addrs, via_proxy=True)
     print(f"TRỄ BẬT (proxy, pid {p.pid}): +{cfg.delay_ms} ms mỗi vòng khứ hồi từ {cfg.central} tới " +
           ", ".join(f"{s} (qua :{a[1]})" for s, a in addrs.items()))
 
@@ -106,7 +117,7 @@ def proxy_off(cfg: Config):
     if not PROXY_STATE.exists():
         return
     st = json.loads(PROXY_STATE.read_text(encoding="utf-8"))
-    set_servers(cfg, {s: cfg.docker_addr(s) for s in cfg.remote_sites()})
+    set_servers(cfg, {s: cfg.docker_addr(s) for s in cfg.remote_sites()}, via_proxy=False)
     try:
         os.kill(st["pid"], signal.SIGTERM)
     except (ProcessLookupError, PermissionError, OSError):

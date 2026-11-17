@@ -54,6 +54,9 @@ port = 5440
 machine = "A"
 port = 5445
 
-# E3: đường postgres_fdw có TLS verify-full + chứng chỉ máy khách, tên DNS nội bộ, role chỉ đọc (make ext-secure)
-[ext.secure]
-domain = "db.nhom8.internal"     # tên trạm: <trạm>.db.nhom8.internal (SAN trong chứng chỉ máy chủ)
+# E3 — bảo mật đường truyền, MẶC ĐỊNH BẬT (`make all` tự cấp chứng chỉ; `make tls-off` để tạm tắt khi gỡ lỗi)
+# Mọi kết nối qua mạng (postgres_fdw, nạp, kiểm tra, đo, nhập liệu, dashboard) dùng TLS ≥ 1.3, sslmode=verify-full.
+[tls]
+enabled   = true
+domain    = "db.nhom8.internal"   # tên nút: <nút>.db.nhom8.internal (SAN trong chứng chỉ máy chủ, không có IP)
+cert_days = 90                    # hạn chứng chỉ trạm; `make tls-status` cảnh báo khi còn < 30 ngày

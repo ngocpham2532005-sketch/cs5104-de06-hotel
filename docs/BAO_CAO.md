@@ -14,9 +14,10 @@ Mã nguồn: [link GitHub], tag `final` · Seed của đề: 402738 · Năm 2026
 PostgreSQL 18, mỗi vùng du lịch một trạm: `dalat`, `nhatrang` (trạm trung tâm), `phuquoc`, `danang`. Hệ chạy trên máy A (macOS)
 và máy B (Windows). `hotel` được phân mảnh ngang theo `region`; `room`, `booking` và các bảng `req_*` được phân mảnh ngang dẫn xuất
 theo chuỗi khoá ngoại; `room_type`, `tour_group` được sao chép ra cả 4 trạm. Trạm trung tâm truy vấn xuyên trạm bằng `postgres_fdw`
-qua 7 khung nhìn `all_<bảng>`. Cả hệ dựng được bằng một lệnh `make all` trên mỗi máy; `make check` đạt cả 103 phép kiểm tra;
+qua 7 khung nhìn `all_<bảng>`. Mọi kết nối qua mạng đều mã hoá TLS 1.3 và kiểm chứng chỉ (`verify-full`) với CA nội bộ của nhóm;
+`postgres_fdw` tới trạm xa dùng role chỉ đọc, xác thực bằng chứng chỉ, không mật khẩu. Cả hệ dựng được bằng một lệnh `make all` trên mỗi máy; `make check` đạt cả 103 phép kiểm tra;
 Q1–Q5 cho kết quả giống hệt CSDL đối chứng. Đo trên hai máy thật (Wi-Fi LAN), với trễ 30 ms Q1 không đổi (0,5 ms) vì chạy trọn tại
-trạm dalat; Q2–Q5 tăng lên khoảng 420–450 ms, tương ứng khoảng 11 vòng khứ hồi. Con số này khớp mô hình *T ≈ số vòng khứ hồi × RTT*
+trạm dalat; Q2–Q5 tăng lên khoảng 430–460 ms, tương ứng khoảng 11 vòng khứ hồi; bật TLS không làm thay đổi số vòng này. Con số này khớp mô hình *T ≈ số vòng khứ hồi × RTT*
 (công thức 1.1 của giáo trình).
 
 ## 1. Thiết kế phân tán và lập luận
@@ -86,6 +87,22 @@ Theo "Đặc điểm dữ liệu", lượt đặt của đoàn có phòng ở �
 nên phòng của một đoàn như vậy rải ở nhiều trạm. Mặt khác, không bảng nào cho biết đoàn đi những vùng nào, nên **Q3 phải hỏi cả 4 trạm**.
 Bị ảnh hưởng chỉ có Q3; Q2, Q4, Q5 cũng chạm 4 trạm nhưng do câu hỏi gộp toàn hệ, không do dòng liên vùng.
 
+### 1.6 Bảo mật đường truyền (E3)
+Hai máy là hai nơi, nên dữ liệu khách (tên, mã số thuế) đi qua mạng. Trạm trung tâm cũng không được tin một trạm chỉ vì nó có đúng IP.
+`make secure` (nằm trong `make all`, chạy lại được) dựng các lớp sau; chi tiết ở `docs/BAO_MAT.md`:
+- **PKI nội bộ.** CA ECDSA P-256 chỉ nằm ở máy A, ký trong container dùng một lần không có mạng. Mỗi nút (4 trạm + `ref`) có chứng chỉ
+  máy chủ với SAN là **tên** `<nút>.db.nhom8.internal`, không có IP, hạn 90 ngày. **Khoá riêng sinh trong container của nút** và không rời
+  khỏi đó: với trạm ở máy B, máy A gửi lệnh `openssl` qua kênh quản trị (`COPY … FROM PROGRAM`); qua mạng chỉ đi CSR và chứng chỉ.
+  Cài có kiểm tra (chuỗi CA, khớp khoá, SAN, hạn), sao lưu, kiểm lại sau reload và tự hoàn tác nếu lỗi.
+- **Mỗi nút:** TLS ≥ 1.3; `pg_hba` từ chối mọi kết nối qua mạng không mã hoá (kể cả replication).
+- **postgres_fdw:** gọi trạm bằng tên (DNS nội bộ ở trạm trung tâm), `sslmode=verify-full`, `sslnegotiation=direct`. Trạm xa dùng role
+  `fdw_reader` (chỉ `SELECT`) xác thực bằng chứng chỉ máy khách, không mật khẩu. Công cụ và giao diện ở máy A cũng kết nối `verify-full`.
+
+`make tls-test` (từ máy A tới `phuquoc` ở máy B): 8/8 đạt. Hai kết nối đúng vào được. Sáu kết nối bị từ chối: không mã hoá, gọi bằng IP,
+thiếu chứng chỉ máy khách, chứng chỉ do CA lạ ký, `fdw_reader` thử ghi, và `postgres` đúng mật khẩu nhưng không mã hoá.
+**Chi phí** chỉ nằm ở lúc mở kết nối, vì `postgres_fdw` giữ kết nối suốt phiên. Ở trễ 30 ms, mở một kết nối fdw mất 469 ms nếu không mã hoá + SCRAM,
+và **340 ms** với TLS direct + chứng chỉ: xác thực bằng chứng chỉ bỏ được 2 vòng SASL. Bảng 3 đã đo lại toàn bộ khi bật TLS.
+
 ## 2. Sơ đồ triển khai, giao diện và dashboard
 
 <svg viewBox="0 0 900 235" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial" font-size="12">
@@ -102,11 +119,12 @@ Bị ảnh hưởng chỉ có Q3; Q2, Q4, Q5 cũng chạm 4 trạm nhưng do câ
   <text x="310" y="92">fdw: s_dalat, s_phuquoc, s_danang, ref</text>
   <text x="310" y="109">7 khung nhìn all_&lt;bảng&gt;</text>
   <text x="310" y="126" fill="#c0521e">tc netem +30 ms (gói tới trạm xa)</text>
+  <text x="310" y="143" fill="#2e5e9e">TLS 1.3 verify-full · CA nội bộ</text>
   <line x1="300" y1="62" x2="222" y2="62" stroke="#c0521e" stroke-width="2" marker-end="url(#a)"/>
   <line x1="300" y1="124" x2="222" y2="124" stroke="#888" stroke-width="1.5" marker-end="url(#a)"/>
   <rect x="20" y="165" width="515" height="52" rx="6" fill="#fff" stroke="#2e7d32"/>
   <text x="30" y="186" font-weight="bold">Nhập liệu :8501 · Dashboard :8502 (Streamlit + psycopg)</text>
-  <text x="30" y="204">kết nối THẲNG từng trạm (không qua postgres_fdw), làm mới mỗi 1 s</text>
+  <text x="30" y="204">kết nối THẲNG từng trạm qua TLS (không qua postgres_fdw), làm mới mỗi 1 s</text>
   <rect x="610" y="5" width="285" height="225" rx="10" fill="#f6f3fb" stroke="#6a4aa5"/>
   <text x="620" y="24" font-weight="bold" fill="#4a2a80">MÁY B · Windows · Docker Desktop (WSL2)</text>
   <text x="620" y="41" fill="#4a2a80">IP 192.168.100.198 · firewall mở 5435, 5436</text>
@@ -116,11 +134,11 @@ Bị ảnh hưởng chỉ có Q3; Q2, Q4, Q5 cũng chạm 4 trạm nhưng do câ
   <text x="660" y="146" font-weight="bold">danang :5436</text><text x="660" y="164">mảnh danang + bản sao</text>
   <line x1="535" y1="80" x2="648" y2="80" stroke="#c0521e" stroke-width="2" marker-end="url(#a)"/>
   <line x1="535" y1="120" x2="648" y2="148" stroke="#c0521e" stroke-width="2" marker-end="url(#a)"/>
-  <text x="556" y="70" fill="#c0521e" font-size="11">LAN</text>
+  <text x="553" y="70" fill="#c0521e" font-size="11">LAN, TLS</text>
   <line x1="535" y1="195" x2="648" y2="168" stroke="#2e7d32" stroke-dasharray="4" marker-end="url(#a)"/>
 </svg>
 
-*Hình 1. Sơ đồ triển khai. Mũi tên đỏ: postgres_fdw từ trạm trung tâm (có trễ khi bật `make delay-on`); nét đứt xanh: dashboard/nhập liệu đọc-ghi thẳng từng trạm.*
+*Hình 1. Sơ đồ triển khai. Mũi tên đỏ: postgres_fdw từ trạm trung tâm qua TLS (có trễ khi bật `make delay-on`); nét đứt xanh: dashboard/nhập liệu đọc-ghi thẳng từng trạm, cũng qua TLS.*
 
 ![Dashboard](img/dashboard.png)
 *Hình 2. Dashboard: mỗi trạm một ô (máy, IP, trạng thái, số dòng từng bảng), bên dưới là bảng tổng hợp so với CSDL đối chứng và nhật ký sự kiện (cắt bớt).*
@@ -171,7 +189,7 @@ Số dòng từng loại jsonb (tour 36.124 / business 27.933 / family 15.943) k
 - (E) jsonb ⇄ bản quan hệ, 4 loại × 4 trạm;
 - (F) số dòng gốc khớp `summary.json` (14 phép).
 
-Tổng cộng 103 phép, kết luận: **ĐẠT**, chạy trong khoảng 1 giây. Sau khi nhập thêm dòng (D7), `make check` vẫn đạt, vì dòng mới cũng được chép sang `ref`
+Tổng cộng 103 phép, kết luận: **ĐẠT**, chạy trong khoảng 9 giây (qua TLS, cả trạm ở máy B). Sau khi nhập thêm dòng (D7), `make check` vẫn đạt, vì dòng mới cũng được chép sang `ref`
 và nhóm F chỉ đếm dòng có id của bộ sinh.
 
 ## 4. Cách chạy
@@ -180,14 +198,15 @@ và nhóm F chỉ đếm dòng có id của bộ sinh.
 # Máy B (Windows: Docker Desktop, Python ≥ 3.11, GNU make; firewall mở 5435-5436)
 make all MACHINE=B
 # Máy A (macOS) — sửa IP hai máy trong deploy.toml trước
-make all            # venv → build → up A → data → load → link → check → bench → mở :8501, :8502
+make all            # venv → build → up A → secure (TLS, 5 nút) → data → load → link → check → bench → mở :8501, :8502
+make tls-status / make tls-test     # chứng chỉ, phiên fdw / 8 phép thử TLS
 make q EXPLAIN=1    # Q1–Q5 cho demo (D3–D5) · make delay-on / delay-off (D6)
 make stop-site SITE=phuquoc / make start-site SITE=phuquoc   # D8, chạy trên máy B
 python tools/onebox.py   # thử cả hệ trên MỘT máy, không cần make (deploy.local.toml)
 ```
 
-Mọi công thức trong Makefile chỉ gọi `docker` và `python`, nên chạy được trên cả macOS lẫn Windows. Máy B không cần venv và không phải
-kết nối ngược về máy A. Từ máy sạch, `make all` mất khoảng 3 phút. Nếu không chạy được `tc` trong container,
+Mọi công thức trong Makefile chỉ gọi `docker` và `python`, nên chạy được trên cả macOS lẫn Windows. Máy B không cần venv, không phải
+kết nối ngược về máy A, và không phải làm gì cho TLS (máy A cấp chứng chỉ; khoá vẫn sinh trong container ở máy B). Từ máy sạch, `make all` trên hai máy thật mất **4 phút 35 giây**, gồm cả cấp chứng chỉ (12 s) và đo (`results/make_all_2machines.log`). Nếu không chạy được `tc` trong container,
 `DELAY_MODE=proxy make delay-on` sẽ dùng proxy TCP (`tools/latency_proxy.py`) để thêm trễ. Đo lại trên 2 máy: Q2 430 ms, Q3 402 ms, gần với số đo bằng `tc` ở Bảng 3. Chi tiết cài đặt và xử lý sự cố ở `README.md` và `IMPLEMENT.md`.
 
 ## 5. Kết quả và giải thích N1–N5
@@ -197,7 +216,7 @@ nên không lẫn độ trễ client ↔ trạm). Bỏ lần đầu (gồm chi p
 từng dòng với bản chạy trên `ref`: **tất cả đều khớp**.
 
 Trễ 30 ms được giả lập bằng `tc netem` trên container trung tâm, chỉ áp cho gói có đích là trạm xa. Kết quả lưu ở `results/results.csv`
-và `results/explain/`.
+và `results/explain/`. **Mọi số đo dưới đây đo khi TLS bật** (E3, mặc định; `make all` ngày 2026-11-17).
 
 > *Môi trường đo:* máy A (macOS, 192.168.100.218) và máy B (Windows, 192.168.100.198) nối cùng mạng Wi-Fi; Docker Desktop trên cả hai.
 > Trễ giả lập cộng thêm vào RTT thật của Wi-Fi (khoảng 7–9 ms giữa hai máy), nên trạm ở máy B chậm hơn trạm dalat cùng máy.
@@ -240,26 +259,30 @@ Hai điểm rút ra từ Bảng 2:
 
 | Truy vấn / biến thể | 0 ms | 30 ms | RTT đo | Mô hình số vòng khứ hồi |
 |---|---:|---:|---:|---|
-| Q1 tại dalat | 0,65 | **0,47** | 0 | 0 — không có Foreign Scan |
-| Lượt hỏi tối thiểu tới 1 trạm xa | 0,31 (A) · 36 – 45 (B) | 163 (A) · 202 – 203 (B) | 4,7 – 5,3 | 5: START, DECLARE, FETCH, CLOSE, COMMIT (Hình 1.2) |
-| **Q2** (async + parallel_commit) | 69 | **436** | 11,0 | 3 START + 3 DECLARE (tuần tự) + 1 FETCH (song song) + 3 CLOSE + 1 COMMIT (song song) = 11 |
-| Q2 tắt async_capable | 100 | 543 | 13,0 | FETCH tuần tự: 3·(START+DECLARE+FETCH+CLOSE) + 1 = 13 |
-| Q2 tắt parallel_commit | 71 | 499 | 13,0 | 11 + 2 COMMIT tuần tự = 13 |
-| Q2 nối 3 bảng gốc | 215 | 1.201 | — | 6 FS tuần tự, kéo về khoảng 40 nghìn dòng |
-| Q2 + use_remote_estimate | 368 | 2.576 | — | thực thi 275 ms, nhưng **lập kế hoạch 2.227 ms** (EXPLAIN gửi sang trạm xa) |
-| Q2 trên all_*, fetch_size 100 | 1.658 | 8.084 | — | khoảng 450 lần FETCH × 100 dòng, chồng lấp một phần giữa 3 trạm (giống Bảng 1.2) |
-| **Q3** (đẩy JOIN xuống) | 60 | **423** | 11,5 | như Q2 ≈ 11 |
-| **Q4** jsonb | 72 | **449** | 12,8 | ≈ 11 (3.413 dòng vừa một lần FETCH 10.000) |
-| **Q5** quan hệ | 71 | **438** | 15,3 | ≈ 11 (+ dao động Wi-Fi khi trả 3.413 dòng) |
+| Q1 tại dalat | 0,60 | **0,55** | 0 | 0 — không có Foreign Scan |
+| Lượt hỏi tối thiểu tới 1 trạm xa | 0,30 (A) · 42 – 44 (B) | 165 (A) · 201 – 214 (B) | 4,9 – 5,3 | 5: START, DECLARE, FETCH, CLOSE, COMMIT (Hình 1.2) |
+| **Q2** (async + parallel_commit) | 75 | **459** | 10,9 | 3 START + 3 DECLARE (tuần tự) + 1 FETCH (song song) + 3 CLOSE + 1 COMMIT (song song) = 11 |
+| Q2 tắt async_capable | 171 | 536 | 12,3 | FETCH tuần tự: 3·(START+DECLARE+FETCH+CLOSE) + 1 = 13 |
+| Q2 tắt parallel_commit | 102 | 515 | 13,0 | 11 + 2 COMMIT tuần tự = 13 |
+| Q2 nối 3 bảng gốc | 295 | 1.221 | — | 6 FS tuần tự, kéo về khoảng 40 nghìn dòng |
+| Q2 + use_remote_estimate | 409 | 2.682 | — | thực thi 272 ms, nhưng **lập kế hoạch 2.324 ms** (EXPLAIN gửi sang trạm xa) |
+| Q2 trên all_*, fetch_size 100 | 1.847 | 8.521 | — | khoảng 450 lần FETCH × 100 dòng, chồng lấp một phần giữa 3 trạm (giống Bảng 1.2) |
+| **Q3** (đẩy JOIN xuống) | 91 | **433** | 10,7 | như Q2 ≈ 11 |
+| **Q4** jsonb | 77 | **443** | 15,4 | ≈ 11 + thời gian truyền 3.413 dòng qua Wi-Fi (tăng theo RTT vì cửa sổ TCP) |
+| **Q5** quan hệ | 85 | **433** | 15,6 | như Q4 |
+
+So với lần đo **không TLS** trên cùng hai máy (2026-11-15): Q2 436 → 459 ms, Q3 423 → 433, Q4 449 → 443, Q5 438 → 433 ms (trễ 30 ms).
+Chênh lệch ±5%, cả hai chiều, nằm trong biên dao động của Wi-Fi. Số vòng khứ hồi của Q2, Q3 không đổi (11,0 → 10,9; 11,5 → 10,7),
+vì TLS chỉ thêm vòng lúc **mở** kết nối, mà lần chạy đầu (có mở kết nối) đã bị bỏ theo quy tắc đo.
 
 Giải thích:
 - **Q1 gần như không đổi** vì chạy trọn tại trạm dalat, không có gói nào đi qua đường bị trễ.
-- **Q2, Q3 tăng khoảng 365 ms**, tức khoảng 11–12 vòng × 30 ms. Ở đây số hạng (số vòng khứ hồi) × RTT lấn át hoàn toàn thời gian xử lý (vài ms).
+- **Q2, Q3 tăng khoảng 340–385 ms**, tức khoảng 11 vòng × 30 ms. Ở đây số hạng (số vòng khứ hồi) × RTT lấn át hoàn toàn thời gian xử lý (vài ms).
 - **Mức tăng theo số trạm xa.** Mỗi trạm xa thêm 5 lệnh. `async_capable` chỉ cho FETCH chạy chồng nhau, còn START, DECLARE, CLOSE vẫn đi
   tuần tự từng trạm, nên thời gian vẫn tăng khoảng 3 vòng cho mỗi trạm xa thêm vào. `parallel_commit` gộp 3 lệnh COMMIT thành một vòng.
 - **Lượng dữ liệu cũng quan trọng.** Kéo dữ liệu thô về (nối bảng gốc, `fetch_size` 100) tốn hàng chục đến hàng trăm vòng.
-- **Trạm cùng máy so với trạm ở máy B:** khi không có trễ, một lượt hỏi tới dalat mất 0,31 ms (qua mạng Docker nội bộ), tới phuquoc/danang
-  mất 36–45 ms, tức 5 vòng × RTT Wi-Fi khoảng 7–9 ms. Vì vậy ngay cả khi tắt trễ giả lập, Q2–Q5 đã mất 60–70 ms. Nói cách khác, mạng
+- **Trạm cùng máy so với trạm ở máy B:** khi không có trễ, một lượt hỏi tới dalat mất 0,30 ms (qua mạng Docker nội bộ), tới phuquoc/danang
+  mất 42–44 ms, tức 5 vòng × RTT Wi-Fi khoảng 8–9 ms. Vì vậy ngay cả khi tắt trễ giả lập, Q2–Q5 đã mất 75–91 ms. Nói cách khác, mạng
   thật đã là "trễ" đáng kể. Trễ 30 ms cộng thêm đều cho cả ba trạm xa, nên số vòng đo được (≈ 11) không phụ thuộc trạm nằm ở máy nào.
 
 ### N4 — Tỉ lệ dòng liên vùng
@@ -267,12 +290,12 @@ Giải thích:
   phuquoc 22, danang 10.
 - **Vì sao Q3 phải qua mạng:** booking được đặt ở trạm của khách sạn, nên phòng của đoàn nằm ở 3 trạm. Vì không biết trước đoàn đi đâu,
   Q3 hỏi cả 4 trạm (trạm dalat trả 0 dòng nhưng vẫn tốn khoảng 3 vòng).
-- **Kiểm chứng:** chạy cùng câu Q3 cho đoàn 3, đoàn này chỉ đi một vùng (45 phòng, tất cả ở danang). Kết quả là 63 ms / **426 ms**
-  (0 / 30 ms), ngang đoàn 1 đi ba vùng (59 / **428 ms**; `results/n4_q3_single_vs_multi.csv`). Chi phí của Q3 phụ thuộc vào số trạm phải hỏi,
+- **Kiểm chứng:** chạy cùng câu Q3 cho đoàn 3, đoàn này chỉ đi một vùng (45 phòng, tất cả ở danang). Kết quả là 84 ms / **431 ms**
+  (0 / 30 ms), ngang đoàn 1 đi ba vùng (91 / **433 ms**; biến thể `single_region_group` trong `results/results.csv`). Chi phí của Q3 phụ thuộc vào số trạm phải hỏi,
   không phụ thuộc vào số vùng đoàn thực sự đi.
 - **Dự đoán khi tỉ lệ tăng lên 30%:** khoảng 2/3 số đoàn sẽ đi nhiều vùng.
   - Với thiết kế này, **mỗi lần chạy Q3 vẫn tốn khoảng 11 vòng khứ hồi**, vì đã hỏi đủ 4 trạm. Số dòng một đoàn chỉ dời từ trạm này sang trạm
-    khác (trung bình khoảng 45 phòng/đoàn), không đáng kể so với một lần FETCH, nên thời gian Q3 gần như không đổi (khoảng 420 ms ở trễ 30 ms).
+    khác (trung bình khoảng 45 phòng/đoàn), không đáng kể so với một lần FETCH, nên thời gian Q3 gần như không đổi (khoảng 430 ms ở trễ 30 ms).
   - Q1, Q2, Q4, Q5 hoàn toàn không đổi, vì dòng liên vùng vẫn nằm đúng trạm của khách sạn.
   - Ngược lại, nếu đã chọn chia `booking` theo đoàn, 30% lượt đặt sẽ nằm khác vùng khách sạn và Q1, Q2 sẽ phải qua mạng.
     Tỉ lệ liên vùng càng cao thì phương án đã chọn càng tỏ ra hợp lý.
@@ -307,17 +330,15 @@ Giải thích:
 |---|---|---|
 | E1 | Bản sao hot standby của mảnh `phuquoc` (máy B) đặt ở máy A, nhận WAL qua streaming replication bất đồng bộ. `make ext-failover` đổi `srv_phuquoc` sang bản sao (chỉ đọc, không promote để tránh split-brain) | dựng ≈ 10 s; độ trễ sao chép trung vị 1,9 ms; tắt `phuquoc` rồi failover thì Q2, Q3 chạy lại và khớp đối chứng |
 | E2 | 2PC tạo đoàn tour có nhật ký điều phối fsync (`begin` → PREPARE ×4 → `commit` → COMMIT PREPARED ×4 → `end`). `make ext-2pc-recover` giải quyết giao dịch lưỡng lự theo *presumed abort*. Đồng thời sửa lỗi bản cũ: lỗi ở pha 2 làm rollback các trạm chưa commit | giả lập bộ điều phối chết sau `prepare`, `decision`, `mid-commit`: phục hồi đúng cả ba; `make check` vẫn ĐẠT |
-| E3 | Đường `postgres_fdw` kiểu production cho các trạm ở các nơi khác nhau. CA nội bộ ký chứng chỉ máy chủ (SAN là tên `<trạm>.db.nhom8.internal`, không có IP) và chứng chỉ máy khách `CN=fdw_reader`. `pg_hba` chỉ nhận `fdw_reader` (chỉ `SELECT`) qua `hostssl … cert`. `srv_*` dùng tên DNS nội bộ, `verify-full`, `sslnegotiation=direct`, **không mật khẩu**. **Chế độ PRD:** khoá sinh trong container của trạm, chỉ CSR/chứng chỉ đi qua mạng; CA ký trong container không mạng (90 ngày); cài có sao lưu và tự hoàn tác | 7/7 phép thử đạt (không mã hoá, gọi bằng IP, thiếu/sai chứng chỉ, thử ghi đều bị từ chối); `make check` ĐẠT. PRD trên 2 máy: CSR sai chính sách, CSR bị sửa, chứng chỉ không khớp khoá đều bị từ chối; đổi khoá khi hệ đang chạy |
 
-So sánh phương án (hai máy thật; E1/E2: `make ext-bench`, trung vị 20 lần, `results/ext/ext_bench.csv`; E3: `make ext-secure-bench`, trung vị 9 phiên, `results/ext/e3_bench.csv`):
+E1, E2 đã chạy lại khi TLS bắt buộc: bản sao nhận WAL qua TLS 1.3; failover đổi bản ghi DNS nội bộ nên vẫn `verify-full`; E2 phục hồi đúng.
+So sánh phương án (hai máy thật, `make ext-bench`, trung vị 20 lần, `results/ext/ext_bench.csv`):
 
 | Phép so sánh | Kết quả | Giải thích |
 |---|---|---|
 | Ghi một lượt đặt vào `phuquoc`: sao chép bất đồng bộ / `on` / `remote_apply` | 28,7 / 34,6 / 35,7 ms | đồng bộ thêm đúng 1 vòng B→A (+21–25%); vẫn chọn bất đồng bộ, vì nếu đồng bộ thì bản sao chết sẽ làm ghi ở trạm chính treo |
 | Q2 đọc mảnh `phuquoc` từ trạm chính (máy B) / bản sao (máy A), trễ 30 ms | 439,5 / 330,9 ms | bớt một trạm xa thì bớt ≈ 3,6 vòng: kiểm chứng độc lập con số ≈ 3 vòng/trạm của N3 |
 | Tạo đoàn: 4 INSERT không nguyên tử / 2PC / 2PC + nhật ký | 149 / 219 / 221 ms | 2PC tốn ≈ 2 vòng mỗi trạm; nhật ký fsync chỉ +1,8 ms |
-| E3, trễ 30 ms, mở một kết nối fdw tới `phuquoc`: không mã hoá + SCRAM / TLS + chứng chỉ / TLS direct + chứng chỉ | 469 / 382 / 340 ms | xác thực bằng chứng chỉ bỏ được 2 vòng trao đổi SCRAM, bù cho bắt tay TLS 1.3; `direct` bỏ thêm vòng SSLRequest (−42 ms ≈ 1,4 vòng) |
-| E3, trễ 30 ms, khi kết nối đã mở: truy vấn nhỏ / Q2 (cùng ba chế độ trên) | 203 / 209 / 207 · 456 / 428 / 458 ms | chênh lệch nằm trong biên dao động của Wi-Fi: mã hoá AES-GCM gần như không tốn gì; TLS chỉ tốn lúc mở kết nối, mà postgres_fdw giữ kết nối suốt phiên |
 
 ## 6. Phân công
 

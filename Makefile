@@ -27,13 +27,14 @@ GEN := datagen/de06_hotel/generate.py
         venv build status stop-site start-site apps-start apps-stop help \
         ext-help ext-replica ext-replica-status ext-failover ext-failback ext-watch ext-replica-down \
         ext-2pc-crash ext-2pc-status ext-2pc-recover ext-bench \
-        ext-secure ext-secure-status ext-secure-test ext-secure-bench ext-secure-down \
-        ext-secure-ca-init ext-secure-sign ext-secure-link \
-        ext-secure-site-csr ext-secure-site-install ext-secure-site-status ext-secure-site-uninstall sync-remote
+        secure tls-status tls-test tls-ca-init tls-sign tls-off \
+        tls-site-csr tls-site-install tls-site-status tls-site-uninstall sync-remote
 
 help:
 	@echo "make all [MACHINE=A|B] | up | data | load | link | check | bench | slope | delay-on | delay-off | entry | dash | down"
 	@echo "make stop-site SITE=phuquoc | start-site SITE=phuquoc | status | q [QUERIES='Q2 Q3'] [EXPLAIN=1]"
+	@echo "TLS (E3, mặc định bật): secure | tls-status | tls-test | tls-off · chế độ chặt từng máy: tls-site-csr | tls-site-install | tls-site-status | tls-site-uninstall [SITES=..] [CLIENT=1] [ROTATE=1] · máy A: tls-sign"
+	@echo "cập nhật mã nguồn sang máy khác: make sync-remote SSH=user@host DEST=... KEY=..."
 	@echo "Phần mở rộng (ngoài yêu cầu đề): make ext-help"
 
 # ---------------------------------------------------------------- toàn bộ
@@ -41,7 +42,7 @@ ifeq ($(MACHINE),B)
 all: build up
 	@echo "Máy B sẵn sàng. Trên máy A chạy: make all"
 else
-all: venv build up data load link check bench apps-start
+all: venv build up secure data load link check bench apps-start
 	@echo "Hệ đã dựng xong. Nhập liệu: http://localhost:8501   Dashboard: http://localhost:8502"
 endif
 
@@ -68,6 +69,42 @@ stop-site:
 
 start-site:
 	$(PY) tools/deploy.py start $(SITE)
+
+# ---------------------------------------------------------------- E3: bảo mật đường truyền (mặc định)
+# make secure: CA nội bộ + chứng chỉ cho mọi nút (khoá sinh trong container của nút; nút ở máy B qua kênh quản trị SQL),
+# pg_hba chỉ nhận kết nối mạng có TLS; chạy lại được (chứng chỉ còn hạn thì giữ nguyên). FORCE=1: cấp lại hết.
+secure:
+	$(VPY) tools/tls.py secure $(if $(FORCE),--force,)
+
+tls-status:
+	$(VPY) tools/tls.py status
+
+tls-test:                ## 8 phép thử: không mã hoá / gọi bằng IP / thiếu hay sai chứng chỉ / thử ghi đều bị từ chối
+	$(VPY) tools/tls.py test
+
+tls-off:                 ## gỡ lỗi: tạm tắt TLS toàn hệ; bật lại: make secure && make link
+	$(VPY) tools/tls.py off
+
+tls-ca-init:
+	$(PY) tools/tls.py ca-init
+
+tls-sign:                ## chế độ chặt: ký CSR do từng máy gửi tới (CSR='a.csr b.csr' hoặc mọi *.csr trong build/e3/exchange)
+	$(PY) tools/tls.py sign $(CSR)
+
+# Chế độ chặt: chạy TẠI máy chứa nút, không ai cần quyền superuser qua mạng (chỉ cần python, không venv)
+SITES ?=
+SITE_FLAGS = $(if $(CLIENT),--client,) $(if $(ROTATE),--rotate,)
+tls-site-csr:
+	$(PY) tools/tls_site.py csr $(SITES) $(SITE_FLAGS)
+
+tls-site-install:
+	$(PY) tools/tls_site.py install $(SITES) $(SITE_FLAGS)
+
+tls-site-status:
+	$(PY) tools/tls_site.py status $(SITES)
+
+tls-site-uninstall:
+	$(PY) tools/tls_site.py uninstall $(SITES)
 
 # ---------------------------------------------------------------- dữ liệu
 data:
@@ -116,15 +153,11 @@ apps-stop:
 # Không nằm trong `make all`; không đổi kết quả D1–D8, N1–N5. Chi tiết, kịch bản demo: docs/NANG_CAO.md
 #   E1  bản sao dự phòng (streaming replication) cho trạm phuquoc + chuyển đọc khi trạm chết
 #   E2  2PC có nhật ký điều phối bền vững + phục hồi giao dịch lưỡng lự
-#   E3  đường postgres_fdw kiểu production: TLS verify-full + chứng chỉ máy khách, DNS nội bộ, role chỉ đọc
 RSITE ?=
 
 ext-help:
 	@echo "E1 · make ext-replica | ext-replica-status | ext-failover | ext-failback | ext-watch | ext-replica-down  [RSITE=phuquoc]"
 	@echo "E2 · make ext-2pc-crash CRASH=prepare|decision|mid-commit | ext-2pc-status | ext-2pc-recover [FORCE=1]"
-	@echo "E3 · make ext-secure | ext-secure-status | ext-secure-test | ext-secure-bench | ext-secure-down"
-	@echo "E3 PRD · mỗi máy: ext-secure-site-csr | ext-secure-site-install | ext-secure-site-status | ext-secure-site-uninstall [SITES='..'] [CLIENT=1] [ROTATE=1]"
-	@echo "         máy A : ext-secure-ca-init | ext-secure-sign [CSR='..'] | ext-secure-link   ·  cập nhật máy khác: make sync-remote SSH=user@host DEST=..."
 	@echo "So sánh phương án E1/E2: make ext-bench  (-> results/ext/ext_bench.csv)"
 	@echo "Xem docs/NANG_CAO.md"
 
@@ -158,46 +191,6 @@ ext-2pc-recover:
 
 ext-bench:               ## so sánh: sync/async replication, đọc chính/bản sao, chi phí 2PC + nhật ký
 	$(VPY) tools/ext_bench.py
-
-ext-secure:              ## E3: PKI nội bộ, TLS ở trạm xa, role fdw_reader chỉ đọc, srv_* verify-full + cert
-	$(VPY) tools/ext_secure.py up
-
-ext-secure-status:
-	$(VPY) tools/ext_secure.py status
-
-ext-secure-test:         ## E3: 7 phép thử (không mã hoá / sai tên / thiếu cert / CA lạ / thử ghi đều phải bị từ chối)
-	$(VPY) tools/ext_secure.py test
-
-ext-secure-bench:        ## E3: chi phí TLS ở trễ 0 / 30 ms (-> results/ext/e3_bench.csv)
-	$(VPY) tools/ext_secure.py bench
-
-ext-secure-down:
-	$(VPY) tools/ext_secure.py down
-
-# ---- E3 chế độ PRD: khoá riêng không rời trạm. Các lệnh ext-secure-site-* chạy TẠI máy chứa trạm (chỉ cần python, không venv)
-SITES ?=
-SITE_FLAGS = $(if $(CLIENT),--client,) $(if $(ROTATE),--rotate,)
-
-ext-secure-site-csr:     ## mỗi máy: sinh khoá trong container + CSR -> build/e3/exchange/
-	$(PY) tools/ext_secure_site.py csr $(SITES) $(SITE_FLAGS)
-
-ext-secure-site-install: ## mỗi máy: kiểm tra + cài chứng chỉ đã ký, bật TLS, có sao lưu và hoàn tác
-	$(PY) tools/ext_secure_site.py install $(SITES) $(SITE_FLAGS)
-
-ext-secure-site-status:
-	$(PY) tools/ext_secure_site.py status $(SITES)
-
-ext-secure-site-uninstall:
-	$(PY) tools/ext_secure_site.py uninstall $(SITES)
-
-ext-secure-ca-init:      ## máy A: CA nội bộ (một lần)
-	$(PY) tools/ext_secure.py ca-init
-
-ext-secure-sign:         ## máy A: ký CSR theo chính sách, trong container không mạng
-	$(PY) tools/ext_secure.py sign $(CSR)
-
-ext-secure-link:         ## máy A: srv_* dùng TLS verify-full + chứng chỉ máy khách đã cài
-	$(VPY) tools/ext_secure.py link
 
 # ---- cập nhật mã nguồn sang máy khác (vd. máy B) qua SSH, rồi so mã băm script ở hai đầu
 SSH  ?=

@@ -1,75 +1,75 @@
 -- Q2 · two_phase_no_async · chạy tại nhatrang · trễ 30 ms
-GroupAggregate (actual time=289.464..289.584 rows=60.00 loops=1)
+GroupAggregate (actual time=263.279..263.319 rows=60.00 loops=1)
   Output: h.region, r.room_type_code, rt.name, sum((sum(((b.nights)::numeric * r.rate)))), (sum((count(*))))::bigint
   Group Key: h.region, r.room_type_code, rt.name
   Buffers: shared hit=414
-  ->  Sort (actual time=289.443..289.462 rows=60.00 loops=1)
+  ->  Sort (actual time=263.266..263.277 rows=60.00 loops=1)
         Output: h.region, r.room_type_code, rt.name, (sum(((b.nights)::numeric * r.rate))), (count(*))
         Sort Key: h.region, r.room_type_code, rt.name
         Sort Method: quicksort  Memory: 28kB
         Buffers: shared hit=414
-        ->  Nested Loop (actual time=19.014..289.317 rows=60.00 loops=1)
+        ->  Nested Loop (actual time=11.169..263.194 rows=60.00 loops=1)
               Output: h.region, r.room_type_code, rt.name, (sum(((b.nights)::numeric * r.rate))), (count(*))
               Join Filter: (rt.room_type_code = r.room_type_code)
               Rows Removed by Join Filter: 840
               Buffers: shared hit=414
-              ->  Index Scan using room_type_pkey on public.room_type rt (actual time=0.028..0.047 rows=15.00 loops=1)
+              ->  Index Scan using room_type_pkey on public.room_type rt (actual time=0.027..0.037 rows=15.00 loops=1)
                     Output: rt.room_type_code, rt.name, rt.capacity
                     Index Searches: 1
                     Buffers: shared hit=2
-              ->  Materialize (actual time=1.265..19.270 rows=60.00 loops=15)
+              ->  Materialize (actual time=0.742..17.538 rows=60.00 loops=15)
                     Output: h.region, r.room_type_code, (sum(((b.nights)::numeric * r.rate))), (count(*))
                     Storage: Memory  Maximum Storage: 20kB
                     Buffers: shared hit=412
-                    ->  Append (actual time=18.971..288.907 rows=60.00 loops=1)
+                    ->  Append (actual time=11.128..263.007 rows=60.00 loops=1)
                           Buffers: shared hit=412
-                          ->  HashAggregate (actual time=18.969..18.981 rows=15.00 loops=1)
+                          ->  HashAggregate (actual time=11.127..11.136 rows=15.00 loops=1)
                                 Output: h.region, r.room_type_code, sum(((b.nights)::numeric * r.rate)), count(*)
                                 Group Key: h.region, r.room_type_code
                                 Batches: 1  Memory Usage: 32kB
                                 Buffers: shared hit=412
-                                ->  Hash Join (actual time=1.032..12.318 rows=13319.00 loops=1)
+                                ->  Hash Join (actual time=0.545..7.268 rows=13319.00 loops=1)
                                       Output: h.region, r.room_type_code, b.nights, r.rate
                                       Inner Unique: true
                                       Hash Cond: (r.hotel_id = h.hotel_id)
                                       Buffers: shared hit=412
-                                      ->  Hash Join (actual time=0.983..8.880 rows=13319.00 loops=1)
+                                      ->  Hash Join (actual time=0.512..5.282 rows=13319.00 loops=1)
                                             Output: b.nights, r.room_type_code, r.rate, r.hotel_id
                                             Inner Unique: true
                                             Hash Cond: (b.room_id = r.room_id)
                                             Buffers: shared hit=411
-                                            ->  Seq Scan on public.booking b (actual time=0.014..3.737 rows=13319.00 loops=1)
+                                            ->  Seq Scan on public.booking b (actual time=0.009..2.348 rows=13319.00 loops=1)
                                                   Output: b.booking_id, b.room_id, b.guest_name, b.check_in, b.nights, b.guest_type, b.tour_group_id, b.request
                                                   Filter: ((b.check_in >= '2025-01-01'::date) AND (b.check_in < '2026-01-01'::date))
                                                   Rows Removed by Filter: 6772
                                                   Buffers: shared hit=400
-                                            ->  Hash (actual time=0.960..0.962 rows=1662.00 loops=1)
+                                            ->  Hash (actual time=0.497..0.498 rows=1662.00 loops=1)
                                                   Output: r.room_type_code, r.rate, r.room_id, r.hotel_id
                                                   Buckets: 2048  Batches: 1  Memory Usage: 101kB
                                                   Buffers: shared hit=11
-                                                  ->  Seq Scan on public.room r (actual time=0.021..0.401 rows=1662.00 loops=1)
+                                                  ->  Seq Scan on public.room r (actual time=0.006..0.223 rows=1662.00 loops=1)
                                                         Output: r.room_type_code, r.rate, r.room_id, r.hotel_id
                                                         Buffers: shared hit=11
-                                      ->  Hash (actual time=0.041..0.042 rows=16.00 loops=1)
+                                      ->  Hash (actual time=0.027..0.028 rows=16.00 loops=1)
                                             Output: h.region, h.hotel_id
                                             Buckets: 1024  Batches: 1  Memory Usage: 9kB
                                             Buffers: shared hit=1
-                                            ->  Seq Scan on public.hotel h (actual time=0.023..0.027 rows=16.00 loops=1)
+                                            ->  Seq Scan on public.hotel h (actual time=0.018..0.020 rows=16.00 loops=1)
                                                   Output: h.region, h.hotel_id
                                                   Buffers: shared hit=1
-                          ->  Foreign Scan (actual time=78.029..78.032 rows=15.00 loops=1)
+                          ->  Foreign Scan (actual time=77.011..77.013 rows=15.00 loops=1)
                                 Output: booking_detail.region, booking_detail.room_type_code, (sum(((booking_detail.nights)::numeric * booking_detail.rate))), (count(*))
                                 Relations: Aggregate on (s_dalat.booking_detail)
                                 Remote SQL: SELECT region, room_type_code, sum((nights * rate)), count(*) FROM public.booking_detail WHERE ((check_in >= '2025-01-01')) AND ((check_in < '2026-01-01')) GROUP BY 1, 2
-                          ->  Foreign Scan (actual time=100.232..100.235 rows=15.00 loops=1)
+                          ->  Foreign Scan (actual time=83.052..83.054 rows=15.00 loops=1)
                                 Output: booking_detail_1.region, booking_detail_1.room_type_code, (sum(((booking_detail_1.nights)::numeric * booking_detail_1.rate))), (count(*))
                                 Relations: Aggregate on (s_phuquoc.booking_detail booking_detail_1)
                                 Remote SQL: SELECT region, room_type_code, sum((nights * rate)), count(*) FROM public.booking_detail WHERE ((check_in >= '2025-01-01')) AND ((check_in < '2026-01-01')) GROUP BY 1, 2
-                          ->  Foreign Scan (actual time=91.636..91.639 rows=15.00 loops=1)
+                          ->  Foreign Scan (actual time=91.787..91.789 rows=15.00 loops=1)
                                 Output: booking_detail_2.region, booking_detail_2.room_type_code, (sum(((booking_detail_2.nights)::numeric * booking_detail_2.rate))), (count(*))
                                 Relations: Aggregate on (s_danang.booking_detail booking_detail_2)
                                 Remote SQL: SELECT region, room_type_code, sum((nights * rate)), count(*) FROM public.booking_detail WHERE ((check_in >= '2025-01-01')) AND ((check_in < '2026-01-01')) GROUP BY 1, 2
 Planning:
   Buffers: shared hit=19
-Planning Time: 0.893 ms
-Execution Time: 515.367 ms
+Planning Time: 0.365 ms
+Execution Time: 479.901 ms

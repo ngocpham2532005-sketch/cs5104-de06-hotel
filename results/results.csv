@@ -1,37 +1,39 @@
 query,variant,delay_ms,run_at,run1_ms,run2_ms,run3_ms,run4_ms,run5_ms,median_ms,rows,matches_ref,sites_touched,remote_sites,foreign_scans,async_scans,explain_planning_ms,explain_execution_ms
-Q1,site_dalat,0,dalat,2.074,0.821,0.649,0.652,0.545,0.651,13,True,1,-,0,0,0.08,0.735
-Q1,central_all_views,0,nhatrang,409.396,198.342,203.055,186.424,205.716,200.699,13,True,4,dalat danang phuquoc,12,9,0.77,190.272
-Q2,two_phase,0,nhatrang,246.528,67.382,74.701,64.877,70.778,69.08,60,True,4,dalat danang phuquoc,3,3,0.247,63.836
-Q2,two_phase_no_async,0,nhatrang,281.831,109.461,89.597,111.217,82.551,99.529,60,True,4,dalat danang phuquoc,3,0,0.127,82.003
-Q2,two_phase_no_parallel_commit,0,nhatrang,284.082,69.548,73.469,71.874,66.014,70.711,60,True,4,dalat danang phuquoc,3,3,0.138,61.727
-Q2,base_join,0,nhatrang,411.483,212.258,204.281,217.356,221.546,214.807,60,True,4,dalat danang phuquoc,6,0,0.19,215.033
-Q2,base_join_remote_est,0,nhatrang,545.969,384.312,369.248,358.758,367.545,368.397,60,True,4,dalat danang phuquoc,3,3,296.34,46.344
-Q2,naive_all_views,0,nhatrang,462.264,232.78,233.452,251.519,239.9,236.676,60,True,4,dalat danang phuquoc,9,9,0.281,213.126
-Q2,naive_fetch100,0,nhatrang,1758.141,1685.231,1680.149,1635.53,1536.028,1657.84,60,True,4,dalat danang phuquoc,9,9,0.393,1490.043
-Q3,pushdown,0,nhatrang,244.408,56.091,59.09,63.46,60.436,59.763,46,True,4,dalat danang phuquoc,3,3,0.676,62.988
-Q3,pushdown_no_async,0,nhatrang,295.625,69.533,79.083,68.739,85.223,74.308,46,True,4,dalat danang phuquoc,3,0,0.783,57.146
-Q3,naive_all_views,0,nhatrang,335.964,148.969,135.256,154.943,161.767,151.956,46,True,4,dalat danang phuquoc,9,9,0.662,141.426
-Q4,jsonb_all_views,0,nhatrang,279.77,75.098,73.426,68.816,70.338,71.882,3413,True,4,dalat danang phuquoc,3,3,0.357,59.947
-Q5,relational_view,0,nhatrang,285.786,81.586,68.248,73.082,67.278,70.665,3413,True,4,dalat danang phuquoc,3,3,0.21,61.213
-Q5,base_join,0,nhatrang,687.536,390.893,399.385,387.683,371.965,389.288,3413,True,4,dalat danang phuquoc,9,0,1.027,392.164
-Q1,site_dalat,30,dalat,1.584,0.521,0.469,0.463,0.444,0.466,13,True,1,-,0,0,0.069,0.526
-Q1,central_all_views,30,nhatrang,2454.791,1298.306,1284.064,1287.193,1269.686,1285.629,13,True,4,dalat danang phuquoc,12,9,0.43,1223.892
-Q2,two_phase,30,nhatrang,1622.936,429.866,433.636,438.922,451.913,436.279,60,True,4,dalat danang phuquoc,3,3,0.743,382.488
-Q2,two_phase_no_async,30,nhatrang,1745.063,564.748,535.187,535.479,550.336,542.908,60,True,4,dalat danang phuquoc,3,0,0.893,515.367
-Q2,two_phase_no_parallel_commit,30,nhatrang,1686.61,513.662,487.71,510.61,480.184,499.16,60,True,4,dalat danang phuquoc,3,3,0.26,366.678
-Q2,base_join,30,nhatrang,2333.288,1209.291,1186.521,1215.557,1191.738,1200.514,60,True,4,dalat danang phuquoc,6,0,0.187,1131.224
-Q2,base_join_remote_est,30,nhatrang,3591.357,2582.931,2569.897,2542.875,2587.224,2576.414,60,True,4,dalat danang phuquoc,3,3,2227.449,275.146
-Q2,naive_all_views,30,nhatrang,2611.007,1158.463,1086.293,1114.048,1122.779,1118.414,60,True,4,dalat danang phuquoc,9,9,0.91,1174.101
-Q2,naive_fetch100,30,nhatrang,9216.308,7990.259,7960.92,8195.622,8178.568,8084.414,60,True,4,dalat danang phuquoc,9,9,0.394,7992.083
-Q3,pushdown,30,nhatrang,1654.11,409.746,428.063,422.389,422.852,422.62,46,True,4,dalat danang phuquoc,3,3,0.847,392.36
-Q3,pushdown_no_async,30,nhatrang,1626.51,500.308,489.735,498.969,492.642,495.805,46,True,4,dalat danang phuquoc,3,0,0.549,474.054
-Q3,naive_all_views,30,nhatrang,2168.154,966.334,985.362,982.442,987.301,983.902,46,True,4,dalat danang phuquoc,9,9,0.147,938.25
-Q4,jsonb_all_views,30,nhatrang,1629.837,454.847,442.159,438.03,459.036,448.503,3413,True,4,dalat danang phuquoc,3,3,0.329,386.283
-Q5,relational_view,30,nhatrang,1641.199,462.959,427.765,441.753,434.791,438.272,3413,True,4,dalat danang phuquoc,3,3,0.49,409.392
-Q5,base_join,30,nhatrang,3150.103,2165.294,2096.754,2032.621,2088.904,2092.829,3413,True,4,dalat danang phuquoc,9,0,0.799,1894.297
-PROBE,probe_dalat_machineA,0,nhatrang,4.831,0.322,0.34,0.295,0.287,0.308,1,True,2,dalat,1,0,,
-PROBE,probe_phuquoc_machineB,0,nhatrang,148.176,43.973,46.041,42.615,45.173,44.573,1,True,2,phuquoc,1,0,,
-PROBE,probe_danang_machineB,0,nhatrang,133.065,38.238,36.439,29.905,35.662,36.05,1,True,2,danang,1,0,,
-PROBE,probe_dalat_machineA,30,nhatrang,487.576,162.375,163.446,162.041,166.335,162.911,1,True,2,dalat,1,0,,
-PROBE,probe_phuquoc_machineB,30,nhatrang,593.044,197.994,226.267,204.958,199.302,202.13,1,True,2,phuquoc,1,0,,
-PROBE,probe_danang_machineB,30,nhatrang,624.463,197.405,200.755,204.947,206.192,202.851,1,True,2,danang,1,0,,
+Q1,site_dalat,0,dalat,1.981,0.622,0.741,0.574,0.557,0.598,13,True,1,-,0,0,0.074,0.67
+Q1,central_all_views,0,nhatrang,413.294,230.866,202.993,235.898,234.247,232.557,13,True,4,dalat danang phuquoc,12,9,1.24,195.935
+Q2,two_phase,0,nhatrang,252.474,72.519,72.232,77.42,81.909,74.97,60,True,4,dalat danang phuquoc,3,3,0.196,79.028
+Q2,two_phase_no_async,0,nhatrang,378.589,159.712,171.327,169.896,176.549,170.611,60,True,4,dalat danang phuquoc,3,0,0.302,142.384
+Q2,two_phase_no_parallel_commit,0,nhatrang,283.967,110.841,92.536,125.345,89.918,101.689,60,True,4,dalat danang phuquoc,3,3,0.179,61.904
+Q2,base_join,0,nhatrang,533.242,268.187,315.756,273.469,331.571,294.612,60,True,4,dalat danang phuquoc,6,0,0.524,243.101
+Q2,base_join_remote_est,0,nhatrang,574.858,455.166,409.647,408.96,402.784,409.303,60,True,4,dalat danang phuquoc,3,3,371.205,54.62
+Q2,naive_all_views,0,nhatrang,508.233,322.858,294.526,292.214,288.256,293.37,60,True,4,dalat danang phuquoc,9,9,0.308,266.178
+Q2,naive_fetch100,0,nhatrang,2157.896,1795.959,1639.347,1898.835,2016.737,1847.397,60,True,4,dalat danang phuquoc,9,9,0.418,2291.638
+Q3,pushdown,0,nhatrang,307.318,81.878,100.515,405.116,67.8,91.197,46,True,4,dalat danang phuquoc,3,3,0.447,71.954
+Q3,pushdown_no_async,0,nhatrang,285.695,82.172,98.83,94.981,86.583,90.782,46,True,4,dalat danang phuquoc,3,0,0.222,95.54
+Q3,naive_all_views,0,nhatrang,397.481,190.679,207.546,193.387,199.728,196.558,46,True,4,dalat danang phuquoc,9,9,0.322,164.826
+Q3,single_region_group,0,nhatrang,248.38,80.887,87.972,78.822,86.528,83.708,45,True,4,dalat danang phuquoc,3,3,0.122,62.644
+Q4,jsonb_all_views,0,nhatrang,245.442,78.656,102.841,75.228,73.707,76.942,3413,True,4,dalat danang phuquoc,3,3,0.157,110.572
+Q5,relational_view,0,nhatrang,303.81,79.727,94.103,89.914,74.538,84.821,3413,True,4,dalat danang phuquoc,3,3,0.075,77.581
+Q5,base_join,0,nhatrang,606.794,481.356,426.783,464.169,457.408,460.788,3413,True,4,dalat danang phuquoc,9,0,0.535,516.987
+Q1,site_dalat,30,dalat,2.031,0.575,0.589,0.524,0.486,0.549,13,True,1,-,0,0,0.074,0.522
+Q1,central_all_views,30,nhatrang,2296.106,1335.57,1378.585,1334.399,1281.987,1334.985,13,True,4,dalat danang phuquoc,12,9,0.388,1294.349
+Q2,two_phase,30,nhatrang,1421.628,471.218,464.844,446.603,453.006,458.925,60,True,4,dalat danang phuquoc,3,3,0.404,443.866
+Q2,two_phase_no_async,30,nhatrang,1505.912,520.628,535.366,566.605,536.947,536.157,60,True,4,dalat danang phuquoc,3,0,0.365,479.901
+Q2,two_phase_no_parallel_commit,30,nhatrang,1444.033,513.584,774.062,499.779,517.295,515.439,60,True,4,dalat danang phuquoc,3,3,0.154,362.014
+Q2,base_join,30,nhatrang,2269.111,1228.261,1226.363,1215.89,1201.273,1221.127,60,True,4,dalat danang phuquoc,6,0,0.171,1239.641
+Q2,base_join_remote_est,30,nhatrang,3605.834,2708.132,2675.116,2680.611,2682.708,2681.659,60,True,4,dalat danang phuquoc,3,3,2324.026,272.165
+Q2,naive_all_views,30,nhatrang,2484.685,1193.223,1352.441,1258.403,1140.711,1225.813,60,True,4,dalat danang phuquoc,9,9,1.149,1104.241
+Q2,naive_fetch100,30,nhatrang,9388.733,8512.843,8528.313,8432.642,8627.247,8520.578,60,True,4,dalat danang phuquoc,9,9,1.025,8904.832
+Q3,pushdown,30,nhatrang,1725.055,437.106,418.129,432.214,434.267,433.24,46,True,4,dalat danang phuquoc,3,3,0.907,390.475
+Q3,pushdown_no_async,30,nhatrang,1488.826,479.644,512.23,521.559,508.423,510.327,46,True,4,dalat danang phuquoc,3,0,0.796,463.549
+Q3,naive_all_views,30,nhatrang,2065.461,1112.628,1031.579,1006.26,998.634,1018.919,46,True,4,dalat danang phuquoc,9,9,0.757,1017.243
+Q3,single_region_group,30,nhatrang,1418.569,416.922,439.544,428.497,433.9,431.198,45,True,4,dalat danang phuquoc,3,3,0.272,375.801
+Q4,jsonb_all_views,30,nhatrang,1466.919,460.66,422.574,440.502,444.777,442.639,3413,True,4,dalat danang phuquoc,3,3,0.59,475.199
+Q5,relational_view,30,nhatrang,1410.127,458.384,430.792,428.688,434.317,432.554,3413,True,4,dalat danang phuquoc,3,3,0.284,448.123
+Q5,base_join,30,nhatrang,3007.136,1903.699,1970.221,2000.464,2251.093,1985.342,3413,True,4,dalat danang phuquoc,9,0,0.569,1995.467
+PROBE,probe_dalat_machineA,0,nhatrang,4.16,0.302,0.273,0.301,0.295,0.298,1,True,2,dalat,1,0,,
+PROBE,probe_phuquoc_machineB,0,nhatrang,121.829,43.234,40.058,52.482,40.708,41.971,1,True,2,phuquoc,1,0,,
+PROBE,probe_danang_machineB,0,nhatrang,140.416,45.42,43.459,41.656,58.411,44.44,1,True,2,danang,1,0,,
+PROBE,probe_dalat_machineA,30,nhatrang,425.323,161.555,169.824,167.543,158.677,164.549,1,True,2,dalat,1,0,,
+PROBE,probe_phuquoc_machineB,30,nhatrang,542.838,204.007,195.406,197.821,203.968,200.894,1,True,2,phuquoc,1,0,,
+PROBE,probe_danang_machineB,30,nhatrang,577.202,212.548,210.623,216.102,221.624,214.325,1,True,2,danang,1,0,,

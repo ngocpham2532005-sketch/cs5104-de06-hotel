@@ -1,105 +1,105 @@
 -- Q5 · base_join · chạy tại nhatrang · trễ 30 ms
-Sort (actual time=1441.410..1441.770 rows=3413.00 loops=1)
+Sort (actual time=1535.139..1535.294 rows=3413.00 loops=1)
   Output: b.booking_id, b.guest_name, b.check_in
   Sort Key: b.booking_id
   Sort Method: quicksort  Memory: 251kB
   Buffers: shared hit=447
-  ->  Append (actual time=1.405..1440.297 rows=3413.00 loops=1)
+  ->  Append (actual time=3.093..1534.337 rows=3413.00 loops=1)
         Buffers: shared hit=447
-        ->  Hash Semi Join (actual time=1.403..6.752 rows=849.00 loops=1)
+        ->  Hash Semi Join (actual time=3.092..10.330 rows=849.00 loops=1)
               Output: b.booking_id, b.guest_name, b.check_in
               Hash Cond: (f.booking_id = c.booking_id)
               Buffers: shared hit=447
-              ->  Hash Join (actual time=0.634..5.555 rows=2019.00 loops=1)
+              ->  Hash Join (actual time=1.557..8.259 rows=2019.00 loops=1)
                     Output: b.booking_id, b.guest_name, b.check_in, f.booking_id
                     Inner Unique: true
                     Hash Cond: (b.booking_id = f.booking_id)
                     Buffers: shared hit=419
-                    ->  Seq Scan on public.booking b (actual time=0.022..1.679 rows=20091.00 loops=1)
+                    ->  Seq Scan on public.booking b (actual time=0.028..2.387 rows=20091.00 loops=1)
                           Output: b.booking_id, b.room_id, b.guest_name, b.check_in, b.nights, b.guest_type, b.tour_group_id, b.request
                           Buffers: shared hit=400
-                    ->  Hash (actual time=0.602..0.604 rows=2019.00 loops=1)
+                    ->  Hash (actual time=1.515..1.516 rows=2019.00 loops=1)
                           Output: f.booking_id
                           Buckets: 2048  Batches: 1  Memory Usage: 87kB
                           Buffers: shared hit=19
-                          ->  Seq Scan on public.req_family f (actual time=0.012..0.363 rows=2019.00 loops=1)
+                          ->  Seq Scan on public.req_family f (actual time=0.015..0.979 rows=2019.00 loops=1)
                                 Output: f.booking_id
                                 Filter: f.airport_pickup
                                 Rows Removed by Filter: 2159
                                 Buffers: shared hit=19
-              ->  Hash (actual time=0.759..0.760 rows=2296.00 loops=1)
+              ->  Hash (actual time=1.516..1.517 rows=2296.00 loops=1)
                     Output: c.booking_id
                     Buckets: 4096  Batches: 1  Memory Usage: 113kB
                     Buffers: shared hit=28
-                    ->  Seq Scan on public.req_family_child c (actual time=0.008..0.508 rows=2296.00 loops=1)
+                    ->  Seq Scan on public.req_family_child c (actual time=0.010..1.006 rows=2296.00 loops=1)
                           Output: c.booking_id
                           Filter: (c.age < 6)
                           Rows Removed by Filter: 3848
                           Buffers: shared hit=28
-        ->  Hash Join (actual time=322.476..364.365 rows=686.00 loops=1)
+        ->  Hash Join (actual time=371.852..445.009 rows=686.00 loops=1)
               Output: b_1.booking_id, b_1.guest_name, b_1.check_in
               Hash Cond: (b_1.booking_id = f_1.booking_id)
-              ->  Foreign Scan on s_dalat.booking b_1 (actual time=190.906..230.239 rows=16275.00 loops=1)
+              ->  Foreign Scan on s_dalat.booking b_1 (actual time=240.173..310.725 rows=16275.00 loops=1)
                     Output: b_1.booking_id, b_1.room_id, b_1.guest_name, b_1.check_in, b_1.nights, b_1.guest_type, b_1.tour_group_id, b_1.request
                     Remote SQL: SELECT booking_id, guest_name, check_in FROM public.booking
-              ->  Hash (actual time=131.553..131.556 rows=686.00 loops=1)
+              ->  Hash (actual time=131.645..131.650 rows=686.00 loops=1)
                     Output: f_1.booking_id, c_1.booking_id
                     Buckets: 1024  Batches: 1  Memory Usage: 35kB
-                    ->  Hash Right Semi Join (actual time=130.537..131.351 rows=686.00 loops=1)
+                    ->  Hash Right Semi Join (actual time=131.306..131.576 rows=686.00 loops=1)
                           Output: f_1.booking_id, c_1.booking_id
                           Hash Cond: (c_1.booking_id = f_1.booking_id)
-                          ->  Foreign Scan on s_dalat.req_family_child c_1 (actual time=66.343..66.575 rows=1774.00 loops=1)
+                          ->  Foreign Scan on s_dalat.req_family_child c_1 (actual time=64.610..64.688 rows=1774.00 loops=1)
                                 Output: c_1.booking_id, c_1.seq, c_1.age
                                 Remote SQL: SELECT booking_id FROM public.req_family_child WHERE ((age < 6))
-                          ->  Hash (actual time=64.178..64.179 rows=1624.00 loops=1)
+                          ->  Hash (actual time=66.683..66.687 rows=1624.00 loops=1)
                                 Output: f_1.booking_id
                                 Buckets: 2048  Batches: 1  Memory Usage: 74kB
-                                ->  Foreign Scan on s_dalat.req_family f_1 (actual time=63.470..63.770 rows=1624.00 loops=1)
+                                ->  Foreign Scan on s_dalat.req_family f_1 (actual time=66.437..66.537 rows=1624.00 loops=1)
                                       Output: f_1.booking_id
                                       Remote SQL: SELECT booking_id FROM public.req_family WHERE (airport_pickup)
-        ->  Hash Join (actual time=434.146..508.139 rows=822.00 loops=1)
+        ->  Hash Join (actual time=433.856..516.531 rows=822.00 loops=1)
               Output: b_2.booking_id, b_2.guest_name, b_2.check_in
               Hash Cond: (b_2.booking_id = f_2.booking_id)
-              ->  Foreign Scan on s_phuquoc.booking b_2 (actual time=258.209..329.365 rows=19755.00 loops=1)
+              ->  Foreign Scan on s_phuquoc.booking b_2 (actual time=262.564..342.975 rows=19755.00 loops=1)
                     Output: b_2.booking_id, b_2.room_id, b_2.guest_name, b_2.check_in, b_2.nights, b_2.guest_type, b_2.tour_group_id, b_2.request
                     Remote SQL: SELECT booking_id, guest_name, check_in FROM public.booking
-              ->  Hash (actual time=175.718..175.721 rows=822.00 loops=1)
+              ->  Hash (actual time=171.281..171.284 rows=822.00 loops=1)
                     Output: f_2.booking_id, c_2.booking_id
                     Buckets: 2048  Batches: 1  Memory Usage: 49kB
-                    ->  Hash Right Semi Join (actual time=174.868..175.564 rows=822.00 loops=1)
+                    ->  Hash Right Semi Join (actual time=170.609..171.165 rows=822.00 loops=1)
                           Output: f_2.booking_id, c_2.booking_id
                           Hash Cond: (c_2.booking_id = f_2.booking_id)
-                          ->  Foreign Scan on s_phuquoc.req_family_child c_2 (actual time=85.723..85.916 rows=2161.00 loops=1)
+                          ->  Foreign Scan on s_phuquoc.req_family_child c_2 (actual time=93.177..93.348 rows=2161.00 loops=1)
                                 Output: c_2.booking_id, c_2.seq, c_2.age
                                 Remote SQL: SELECT booking_id FROM public.req_family_child WHERE ((age < 6))
-                          ->  Hash (actual time=89.115..89.115 rows=1826.00 loops=1)
+                          ->  Hash (actual time=77.419..77.419 rows=1826.00 loops=1)
                                 Output: f_2.booking_id
                                 Buckets: 2048  Batches: 1  Memory Usage: 81kB
-                                ->  Foreign Scan on s_phuquoc.req_family f_2 (actual time=88.621..88.824 rows=1826.00 loops=1)
+                                ->  Foreign Scan on s_phuquoc.req_family f_2 (actual time=76.953..77.152 rows=1826.00 loops=1)
                                       Output: f_2.booking_id
                                       Remote SQL: SELECT booking_id FROM public.req_family WHERE (airport_pickup)
-        ->  Hash Join (actual time=418.173..560.618 rows=1056.00 loops=1)
+        ->  Hash Join (actual time=425.726..562.049 rows=1056.00 loops=1)
               Output: b_3.booking_id, b_3.guest_name, b_3.check_in
               Hash Cond: (b_3.booking_id = f_3.booking_id)
-              ->  Foreign Scan on s_danang.booking b_3 (actual time=244.194..382.527 rows=23879.00 loops=1)
+              ->  Foreign Scan on s_danang.booking b_3 (actual time=255.848..388.928 rows=23879.00 loops=1)
                     Output: b_3.booking_id, b_3.room_id, b_3.guest_name, b_3.check_in, b_3.nights, b_3.guest_type, b_3.tour_group_id, b_3.request
                     Remote SQL: SELECT booking_id, guest_name, check_in FROM public.booking
-              ->  Hash (actual time=173.961..173.964 rows=1056.00 loops=1)
+              ->  Hash (actual time=169.864..169.866 rows=1056.00 loops=1)
                     Output: f_3.booking_id, c_3.booking_id
                     Buckets: 2048  Batches: 1  Memory Usage: 58kB
-                    ->  Hash Right Semi Join (actual time=172.413..173.661 rows=1056.00 loops=1)
+                    ->  Hash Right Semi Join (actual time=169.197..169.729 rows=1056.00 loops=1)
                           Output: f_3.booking_id, c_3.booking_id
                           Hash Cond: (c_3.booking_id = f_3.booking_id)
-                          ->  Foreign Scan on s_danang.req_family_child c_3 (actual time=87.160..87.519 rows=2670.00 loops=1)
+                          ->  Foreign Scan on s_danang.req_family_child c_3 (actual time=83.769..83.921 rows=2670.00 loops=1)
                                 Output: c_3.booking_id, c_3.seq, c_3.age
                                 Remote SQL: SELECT booking_id FROM public.req_family_child WHERE ((age < 6))
-                          ->  Hash (actual time=85.235..85.236 rows=2392.00 loops=1)
+                          ->  Hash (actual time=85.413..85.414 rows=2392.00 loops=1)
                                 Output: f_3.booking_id
                                 Buckets: 4096  Batches: 1  Memory Usage: 117kB
-                                ->  Foreign Scan on s_danang.req_family f_3 (actual time=84.154..84.596 rows=2392.00 loops=1)
+                                ->  Foreign Scan on s_danang.req_family f_3 (actual time=84.945..85.127 rows=2392.00 loops=1)
                                       Output: f_3.booking_id
                                       Remote SQL: SELECT booking_id FROM public.req_family WHERE (airport_pickup)
 Planning:
   Buffers: shared hit=36
-Planning Time: 0.799 ms
-Execution Time: 1894.297 ms
+Planning Time: 0.569 ms
+Execution Time: 1995.467 ms

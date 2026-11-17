@@ -1,0 +1,24 @@
+-- Q4 · jsonb_all_views · chạy tại nhatrang · trễ 0 ms
+Sort (actual time=33.198..33.394 rows=3413.00 loops=1)
+  Output: booking.booking_id, booking.guest_name, booking.check_in
+  Sort Key: booking.booking_id
+  Sort Method: quicksort  Memory: 251kB
+  Buffers: shared hit=400
+  ->  Append (actual time=14.548..32.416 rows=3413.00 loops=1)
+        Buffers: shared hit=400
+        ->  Seq Scan on public.booking (actual time=0.023..4.736 rows=849.00 loops=1)
+              Output: booking.booking_id, booking.guest_name, booking.check_in
+              Filter: ((booking.request @> '{"airport_pickup": true}'::jsonb) AND (booking.request @? '$."children_ages"[*]?(@ < 6)'::jsonpath) AND (booking.guest_type = 'family'::text))
+              Rows Removed by Filter: 19242
+              Buffers: shared hit=400
+        ->  Async Foreign Scan on s_dalat.booking booking_1 (actual time=0.789..0.878 rows=686.00 loops=1)
+              Output: booking_1.booking_id, booking_1.guest_name, booking_1.check_in
+              Remote SQL: SELECT booking_id, guest_name, check_in FROM public.booking WHERE ((request @> '{"airport_pickup": true}')) AND ((request @? '$."children_ages"[*]?(@ < 6)'::jsonpath)) AND ((guest_type = 'family'))
+        ->  Async Foreign Scan on s_phuquoc.booking booking_2 (actual time=8.286..8.393 rows=822.00 loops=1)
+              Output: booking_2.booking_id, booking_2.guest_name, booking_2.check_in
+              Remote SQL: SELECT booking_id, guest_name, check_in FROM public.booking WHERE ((request @> '{"airport_pickup": true}')) AND ((request @? '$."children_ages"[*]?(@ < 6)'::jsonpath)) AND ((guest_type = 'family'))
+        ->  Async Foreign Scan on s_danang.booking booking_3 (actual time=9.681..9.814 rows=1056.00 loops=1)
+              Output: booking_3.booking_id, booking_3.guest_name, booking_3.check_in
+              Remote SQL: SELECT booking_id, guest_name, check_in FROM public.booking WHERE ((request @> '{"airport_pickup": true}')) AND ((request @? '$."children_ages"[*]?(@ < 6)'::jsonpath)) AND ((guest_type = 'family'))
+Planning Time: 0.357 ms
+Execution Time: 59.947 ms

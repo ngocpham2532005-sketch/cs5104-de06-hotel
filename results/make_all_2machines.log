@@ -1,0 +1,79 @@
+python3 -m venv .venv
+.venv/bin/python -m pip install -q --upgrade pip
+.venv/bin/python -m pip install -q -r requirements.txt
+python3 tools/deploy.py build
+  $ docker build -q -t cs5104-pg18 /Users/daohung/MCS/CS5104/de06_hotel_ddb/docker
+sha256:2493ff47e3eabb6931fb91d09f7c54965ddc69c6eba47f9c0e287bb260505e13
+python3 tools/deploy.py up A
+  $ docker run -d --name cs5104_dalat --hostname dalat --network cs5104_net -p 0.0.0.0:5434:5432 -e POSTGRES_PASSWORD=cs5104 -e POSTGRES_USER=postgres -e POSTGRES_DB=hotel -e TZ=Asia/Ho_Chi_Minh -v cs5104_dalat_data:/var/lib/postgresql --cap-add NET_ADMIN --add-host host.docker.internal:host-gateway --label cs5104=de06 cs5104-pg18 -c max_prepared_transactions=20 -c shared_buffers=256MB -c max_connections=200
+00e8e864a99548d938dedf992c87ea5ceb44bdd1aaade7396b1464b8e0c8d1fd
+  $ docker run -d --name cs5104_nhatrang --hostname nhatrang --network cs5104_net -p 0.0.0.0:5433:5432 -e POSTGRES_PASSWORD=cs5104 -e POSTGRES_USER=postgres -e POSTGRES_DB=hotel -e TZ=Asia/Ho_Chi_Minh -v cs5104_nhatrang_data:/var/lib/postgresql --cap-add NET_ADMIN --add-host host.docker.internal:host-gateway --label cs5104=de06 cs5104-pg18 -c max_prepared_transactions=20 -c shared_buffers=256MB -c max_connections=200
+db5292ded1c909a2dec3b7923825339e5ea4f408257b987ff7dbe2f10ebfde3d
+  $ docker run -d --name cs5104_ref --hostname ref --network cs5104_net -p 0.0.0.0:5440:5432 -e POSTGRES_PASSWORD=cs5104 -e POSTGRES_USER=postgres -e POSTGRES_DB=hotel -e TZ=Asia/Ho_Chi_Minh -v cs5104_ref_data:/var/lib/postgresql --cap-add NET_ADMIN --add-host host.docker.internal:host-gateway --label cs5104=de06 cs5104-pg18 -c max_prepared_transactions=20 -c shared_buffers=256MB -c max_connections=200
+acf196098a5d4e0fb95e14d3882789026f077e50626161dc7601404eaf1074fe
+  dalat     sẵn sàng  (dalat @ máy A (macOS, 192.168.100.218:5434))
+  nhatrang  sẵn sàng  (nhatrang @ máy A (macOS, 192.168.100.218:5433))
+  ref       sẵn sàng  (ref @ máy A (macOS, 192.168.100.218:5440))
+Máy A (macOS): dalat, nhatrang, ref đang chạy.
+python3 datagen/de06_hotel/generate.py --size mini
+Đề 6 · seed 402738 · cỡ mini → /Users/daohung/MCS/CS5104/de06_hotel_ddb/datagen/de06_hotel/output/mini
+  room_type                         4
+  hotel                             8
+  room                             40
+  tour_group                        6
+  booking                         120
+  req_tour                         52
+  req_business                     42
+  req_family                       26
+  req_family_child                 40
+python3 datagen/de06_hotel/generate.py --size lab
+Đề 6 · seed 402738 · cỡ lab → /Users/daohung/MCS/CS5104/de06_hotel_ddb/datagen/de06_hotel/output/lab
+  room_type                        15
+  hotel                            60
+  room                           6000
+  tour_group                      800
+  booking                       80000
+  req_tour                      36124
+  req_business                  27933
+  req_family                    15943
+  req_family_child              23956
+.venv/bin/python tools/load.py
+1) Chờ các trạm sẵn sàng
+  kết nối được dalat @ máy A (macOS, 192.168.100.218:5434)
+  kết nối được nhatrang @ máy A (macOS, 192.168.100.218:5433)
+  kết nối được phuquoc @ máy B (Windows 11, 192.168.100.198:5435)
+  kết nối được danang @ máy B (Windows 11, 192.168.100.198:5436)
+  kết nối được ref @ máy A (macOS, 192.168.100.218:5440)
+2) Chia dữ liệu thành mảnh
+3) Nạp CSDL đối chứng
+  ref: đã nạp 9 bảng từ datagen/de06_hotel/output/lab
+4) Nạp mảnh vào từng trạm
+  dalat: đã nạp mảnh (13 khách sạn, 1193 phòng, 16275 lượt đặt) vào dalat @ máy A (macOS, 192.168.100.218:5434)
+  nhatrang: đã nạp mảnh (16 khách sạn, 1662 phòng, 20091 lượt đặt) vào nhatrang @ máy A (macOS, 192.168.100.218:5433)
+  phuquoc: đã nạp mảnh (14 khách sạn, 1387 phòng, 19755 lượt đặt) vào phuquoc @ máy B (Windows 11, 192.168.100.198:5435)
+  danang: đã nạp mảnh (17 khách sạn, 1758 phòng, 23879 lượt đặt) vào danang @ máy B (Windows 11, 192.168.100.198:5436)
+5) Đối chiếu số dòng
+  [OK]   room_type          [15, 15, 15, 15]  tổng=15  summary.json=15
+  [OK]   tour_group         [800, 800, 800, 800]  tổng=800  summary.json=800
+  [OK]   hotel              [13, 16, 14, 17]  tổng=60  summary.json=60
+  [OK]   room               [1193, 1662, 1387, 1758]  tổng=6000  summary.json=6000
+  [OK]   booking            [16275, 20091, 19755, 23879]  tổng=80000  summary.json=80000
+  [OK]   req_tour           [7537, 8621, 9285, 10681]  tổng=36124  summary.json=36124
+  [OK]   req_business       [5498, 7292, 6710, 8433]  tổng=27933  summary.json=27933
+  [OK]   req_family         [3240, 4178, 3760, 4765]  tổng=15943  summary.json=15943
+  [OK]   req_family_child   [4833, 6144, 5740, 7239]  tổng=23956  summary.json=23956
+  [OK]   dòng liên vùng = 5144 (rate 0.0643) khớp summary.json
+-> results/n1_fragments.csv
+.venv/bin/python tools/link.py
+Traceback (most recent call last):
+  File "/Users/daohung/MCS/CS5104/de06_hotel_ddb/tools/link.py", line 71, in <module>
+    main()
+  File "/Users/daohung/MCS/CS5104/de06_hotel_ddb/tools/link.py", line 55, in main
+    c.execute(sql)
+  File "/Users/daohung/MCS/CS5104/de06_hotel_ddb/.venv/lib/python3.11/site-packages/psycopg/connection.py", line 304, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.SqlclientUnableToEstablishSqlconnection: could not connect to server "srv_phuquoc"
+DETAIL:  connection to server at "192.168.100.198", port 5435 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+make: *** [link] Error 1
+EXIT=2

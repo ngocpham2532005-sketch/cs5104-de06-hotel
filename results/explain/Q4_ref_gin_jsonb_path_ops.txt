@@ -1,0 +1,18 @@
+Sort (actual time=2.843..2.907 rows=3413.00 loops=1)
+  Sort Key: booking_id
+  Sort Method: quicksort  Memory: 251kB
+  Buffers: shared hit=1511
+  ->  Bitmap Heap Scan on booking b (actual time=0.328..2.655 rows=3413.00 loops=1)
+        Recheck Cond: ((request @> '{"airport_pickup": true}'::jsonb) AND (request @? '$."children_ages"[*]?(@ < 6)'::jsonpath))
+        Rows Removed by Index Recheck: 4448
+        Filter: (guest_type = 'family'::text)
+        Heap Blocks: exact=1501
+        Buffers: shared hit=1508
+        ->  Bitmap Index Scan on booking_request_gin (actual time=0.257..0.257 rows=7861.00 loops=1)
+              Index Cond: ((request @> '{"airport_pickup": true}'::jsonb) AND (request @? '$."children_ages"[*]?(@ < 6)'::jsonpath))
+              Index Searches: 1
+              Buffers: shared hit=7
+Planning:
+  Buffers: shared hit=191
+Planning Time: 0.209 ms
+Execution Time: 2.999 ms

@@ -1,0 +1,54 @@
+# Cấu hình thử nghiệm trên MỘT máy (giả lập máy B bằng chính máy A).
+# Dùng: DEPLOY=deploy.local.toml make all   rồi   DEPLOY=deploy.local.toml make up MACHINE=B
+# Container của "máy B" vẫn được gọi qua cổng công bố của máy chủ (host.docker.internal),
+# tức đi qua đường mạng của máy chủ chứ không qua mạng Docker nội bộ như trạm dalat.
+
+[project]
+de        = 6
+image     = "cs5104-pg18"
+db        = "hotel"
+user      = "postgres"
+password  = "cs5104"
+central   = "nhatrang"
+data_size = "lab"
+delay_ms  = 30
+
+[machines.A]
+os = "macOS"
+ip = "127.0.0.1"
+
+[machines.B]
+os = "macOS (giả lập máy B)"
+ip = "127.0.0.1"
+docker_ip = "host.docker.internal"
+
+[sites.dalat]
+no = 1
+machine = "A"
+port = 5434
+
+[sites.nhatrang]
+no = 2
+machine = "A"
+port = 5433
+
+[sites.phuquoc]
+no = 3
+machine = "B"
+port = 5435
+
+[sites.danang]
+no = 4
+machine = "B"
+port = 5436
+
+[ref]
+machine = "A"
+port = 5440
+
+# ---------------------------------------------------------------- PHẦN MỞ RỘNG (ngoài yêu cầu đề)
+# Chỉ các lệnh `make ext-*` đọc mục này; `make all` và demo D1–D8 không dùng tới. Xem docs/NANG_CAO.md.
+# E1: bản sao dự phòng (streaming replication) của trạm phuquoc (máy B), đặt ở máy A.
+[ext.replica.phuquoc]
+machine = "A"
+port = 5445

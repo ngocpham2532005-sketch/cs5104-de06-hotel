@@ -1,14 +1,37 @@
--- Q2 · Doanh thu (số đêm × giá phòng) theo vùng và loại phòng, lượt nhận phòng năm 2025 — gộp 4 trạm
--- Mỗi trạm tự JOIN + GROUP BY trong khung nhìn mảnh v_revenue; WHERE yr = 2025 được đẩy xuống trạm.
--- Trung tâm chỉ nhận vài chục dòng tổng con rồi gộp lần cuối và nối room_type (bảng sao chép, cục bộ).
-SELECT x.region, x.room_type_code, rt.name AS room_type,
-       sum(x.bookings) AS bookings, sum(x.nights) AS nights, sum(x.revenue) AS revenue
+-- Q2 · Doanh thu theo vùng và loại phòng, năm 2025 (gộp 4 trạm) — chạy ở trạm trung tâm
+-- Doanh thu của một lượt đặt = nights × room.rate; lượt đặt thuộc năm 2025 theo check_in.
+-- GỘP HAI GIAI ĐOẠN (Giáo trình Mã 3.2):
+--   giai đoạn 1 — mỗi trạm tự lọc + GROUP BY trên khung nhìn cục bộ booking_detail (booking⋈room⋈hotel);
+--                postgres_fdw đẩy nguyên WHERE + GROUP BY xuống (Relations: Aggregate on ...),
+--                3 trạm xa được hỏi SONG SONG (Async Foreign Scan), mỗi trạm trả ≤ 15 dòng;
+--   giai đoạn 2 — trạm trung tâm cộng dồn và nối room_type (bản sao cục bộ) để lấy tên loại phòng.
+SELECT s.region, s.room_type_code, rt.name AS room_type,
+       sum(s.revenue) AS revenue, sum(s.bookings)::bigint AS bookings
 FROM (
-  SELECT * FROM s_dalat.v_revenue WHERE yr = 2025
-  UNION ALL SELECT * FROM s_nhatrang.v_revenue WHERE yr = 2025
-  UNION ALL SELECT * FROM s_phuquoc.v_revenue WHERE yr = 2025
-  UNION ALL SELECT * FROM s_danang.v_revenue WHERE yr = 2025
-) x
-JOIN room_type rt ON rt.room_type_code = x.room_type_code
-GROUP BY x.region, x.room_type_code, rt.name
-ORDER BY x.region, x.room_type_code;
+    -- nhatrang (cục bộ)
+    SELECT region, room_type_code, sum(nights * rate) AS revenue, count(*) AS bookings
+    FROM public.booking_detail
+    WHERE check_in >= DATE '2025-01-01' AND check_in < DATE '2026-01-01'
+    GROUP BY region, room_type_code
+    UNION ALL
+    -- dalat
+    SELECT region, room_type_code, sum(nights * rate) AS revenue, count(*) AS bookings
+    FROM s_dalat.booking_detail
+    WHERE check_in >= DATE '2025-01-01' AND check_in < DATE '2026-01-01'
+    GROUP BY region, room_type_code
+    UNION ALL
+    -- phuquoc
+    SELECT region, room_type_code, sum(nights * rate) AS revenue, count(*) AS bookings
+    FROM s_phuquoc.booking_detail
+    WHERE check_in >= DATE '2025-01-01' AND check_in < DATE '2026-01-01'
+    GROUP BY region, room_type_code
+    UNION ALL
+    -- danang
+    SELECT region, room_type_code, sum(nights * rate) AS revenue, count(*) AS bookings
+    FROM s_danang.booking_detail
+    WHERE check_in >= DATE '2025-01-01' AND check_in < DATE '2026-01-01'
+    GROUP BY region, room_type_code
+) s
+JOIN room_type rt ON rt.room_type_code = s.room_type_code
+GROUP BY s.region, s.room_type_code, rt.name
+ORDER BY s.region, s.room_type_code;

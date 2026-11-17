@@ -1,0 +1,10 @@
+metric,value
+bookings_total,80000
+tour_bookings,36124
+cross_region_bookings,5144
+cross_region_rate,0.0643
+multi_region_groups,115
+tour_groups_with_bookings,800
+Q3_group1_rows_danang,10
+Q3_group1_rows_nhatrang,14
+Q3_group1_rows_phuquoc,22

@@ -1,6 +1,8 @@
-datagen/de06_hotel/output/
-build/
-logs/
-results/.delay
-results/.delay_proxy.pid
+.venv/
 __pycache__/
+build/
+datagen/de06_hotel/output/
+results/logs/
+results/events.jsonl
+.DS_Store
+results/2pc_coordinator.jsonl

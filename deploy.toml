@@ -1,46 +1,55 @@
-# Cấu hình triển khai: trạm -> máy, IP, cổng.
-# Sửa IP của máy A và máy B cho đúng mạng LAN lúc demo (xem `ip addr` / `ipconfig`).
-# Đổi sang điểm phát Wi-Fi điện thoại: chỉ cần sửa hai dòng ip bên dưới rồi `make link`.
+# CS5104 — Đề 6: Chuỗi khách sạn nghỉ dưỡng — bản đồ triển khai
+# Trạm -> máy, IP, cổng. `make up MACHINE=A` / `make up MACHINE=B` đọc tệp này.
+# Trước buổi demo: sửa machines.A.ip và machines.B.ip thành IP LAN thật của hai máy.
+# Muốn thử trên một máy: DEPLOY=deploy.local.toml make all (xem deploy.local.toml).
 
-[db]
-user     = "postgres"
-password = "cs5104"
-dbname   = "hotel"        # CSDL của mỗi trạm
-refdb    = "hotel_ref"    # CSDL tập trung đối chứng (đặt trong container trạm trung tâm)
-size     = "lab"          # mini | lab
-# postgres_fdw từ trạm trung tâm tới CSDL đối chứng nằm CÙNG container => localhost:5432 bên trong container
-ref_fdw_host = "localhost"
-ref_fdw_port = 5432
+[project]
+de        = 6
+image     = "cs5104-pg18"        # build từ docker/Dockerfile (postgres:18 + iproute2 cho tc netem)
+db        = "hotel"
+user      = "postgres"
+password  = "cs5104"
+central   = "nhatrang"           # trạm trung tâm: postgres_fdw + khung nhìn all_<bảng>
+data_size = "lab"                # mini | lab
+delay_ms  = 30
 
 [machines.A]
-ip = "192.168.1.10"
+os = "macOS"                     # chạy trạm trung tâm, dalat, CSDL đối chứng, giao diện, dashboard
+ip = "192.168.100.218"
 
 [machines.B]
-ip = "192.168.1.20"
+os = "Windows 11"                # chạy phuquoc, danang
+ip = "192.168.100.198"
+# docker_ip = "..."              # (tuỳ chọn) địa chỉ mà container ở máy A dùng để tới máy B, mặc định = ip
 
-# site_no dùng để cấp khoá chính không trùng: mã mới = 1.000.000 + 10*n + site_no
+# no = số thứ tự trạm, quyết định dải khoá chính cho dòng mới: booking_id ∈ [no·10^7 + 1, (no+1)·10^7 − 1]
 [sites.dalat]
+no = 1
 machine = "A"
-port    = 5434
-site_no = 1
+port = 5434
 
-[sites.nhatrang]          # trạm trung tâm: giữ postgres_fdw, khung nhìn all_*, CSDL đối chứng
+[sites.nhatrang]
+no = 2
 machine = "A"
-port    = 5433
-site_no = 2
-central = true
+port = 5433
 
 [sites.phuquoc]
+no = 3
 machine = "B"
-port    = 5435
-site_no = 3
+port = 5435
 
 [sites.danang]
+no = 4
 machine = "B"
-port    = 5436
-site_no = 4
+port = 5436
 
-[app]
-entry_port = 8080
-dash_port  = 8081
-delay_ms   = 30
+[ref]                            # CSDL tập trung đối chứng (lược đồ schema_central.sql, toàn bộ dữ liệu)
+machine = "A"
+port = 5440
+
+# ---------------------------------------------------------------- PHẦN MỞ RỘNG (ngoài yêu cầu đề)
+# Chỉ các lệnh `make ext-*` đọc mục này; `make all` và demo D1–D8 không dùng tới. Xem docs/NANG_CAO.md.
+# E1: bản sao dự phòng (streaming replication) của trạm phuquoc (máy B), đặt ở máy A.
+[ext.replica.phuquoc]
+machine = "A"
+port = 5445

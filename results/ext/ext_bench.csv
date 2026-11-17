@@ -1,0 +1,11 @@
+bench,variant,delay_ms,median_ms,min_ms,max_ms,note
+B1,synchronous_commit=local,0,28.65,24.38,102.68,ghi -> thấy ở bản sao (trung vị) 30.58 ms
+B1,synchronous_commit=on,0,34.63,30.75,116.74,ghi -> thấy ở bản sao (trung vị) 35.38 ms
+B1,synchronous_commit=remote_apply,0,35.73,31.62,109.25,ghi -> thấy ở bản sao (trung vị) 36.43 ms
+B2,"Q2, srv_phuquoc -> phuquoc (máy B)",0,68.22,59.84,128.98,
+B2,"Q2, srv_phuquoc -> phuquoc_replica (máy A)",0,43.49,42.08,133.13,
+B2,"Q2, srv_phuquoc -> phuquoc (máy B)",30,439.47,427.85,501.23,
+B2,"Q2, srv_phuquoc -> phuquoc_replica (máy A)",30,330.88,296.2,384.23,trễ netem chỉ áp cho trạm xa đã cấu hình; bản sao cùng máy A không bị trễ
+B3,"4 INSERT autocommit (không nguyên tử, mốc so sánh)",0,149.41,131.21,240.16,"gồm cả mở 4 kết nối (A->2 trạm máy A, 2 trạm máy B)"
+B3,2PC không nhật ký (bản cơ bản),0,218.79,184.0,293.26,"gồm cả mở 4 kết nối (A->2 trạm máy A, 2 trạm máy B)"
+B3,2PC + nhật ký fsync (E2),0,220.62,183.61,287.14,"gồm cả mở 4 kết nối (A->2 trạm máy A, 2 trạm máy B)"

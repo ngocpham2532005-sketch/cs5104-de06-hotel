@@ -1,68 +1,150 @@
+#!/usr/bin/env python3
+"""Nạp dữ liệu: CSDL đối chứng `ref` (lược đồ tập trung) + đúng mảnh vào từng trạm.
+
+    python tools/load.py [--size lab|mini] [--wait 600]
+1. Chờ mọi trạm (kể cả trạm ở máy B) nhận kết nối.
+2. Chia CSV thành mảnh (tools/split.py).
+3. ref: schema_central.sql + COPY toàn bộ CSV.
+4. Mỗi trạm: site_schema.sql (đã thay tham số) + COPY mảnh của trạm; trạm trung tâm thêm sequence đoàn tour.
+5. In bảng số dòng mỗi mảnh, so với dự kiến và summary.json -> results/n1_fragments.csv
 """
-Nạp dữ liệu (chạy ở máy A):
-  1. CSDL đối chứng hotel_ref (trong container trạm trung tâm) ← toàn bộ CSV tập trung.
-  2. Mỗi trạm: CSDL hotel ← schema_central.sql + site_extra.sql + đúng mảnh của trạm.
-  3. Đối chiếu số dòng với expected.json và summary.json.
-"""
-import json, sys, time
-from cfg import (CENTRAL, DATA_DIR, DB, ROOT, SITE_DIR, SITES, ALL_TABLES, connect, site)
+import argparse
+import csv
+import json
+import sys
+import time
+from pathlib import Path
 
-SCHEMA = (ROOT / "sql" / "schema_central.sql").read_text(encoding="utf-8")
-EXTRA = (ROOT / "sql" / "site_extra.sql").read_text(encoding="utf-8")
-
-
-def recreate(s, dbname):
-    with connect(s, db="postgres") as c:
-        c.execute(f'DROP DATABASE IF EXISTS "{dbname}" WITH (FORCE)')
-        c.execute(f'CREATE DATABASE "{dbname}" TEMPLATE template0 ENCODING \'UTF8\'')
+from common import (ALL_TABLES, ID_BLOCK, REPLICATED, RESULTS, ROOT, SITES_ORDER, SQL_DIR,
+                    TOUR_GROUP_NEW_START, Config, die, fail, ok)
+from split import split
 
 
-def copy_dir(c, d):
-    counts = {}
-    for t in ALL_TABLES:
-        data = (d / f"{t}.csv").read_bytes()
-        res = c.execute(f"COPY {t} FROM STDIN WITH (FORMAT csv, HEADER true)", copy_data=data)
-        counts[t] = int(res[-1].status.split()[-1])
-    c.execute("ANALYZE")
+def wait_all(cfg: Config, timeout: int):
+    import psycopg
+    pending = list(cfg.nodes())
+    t0 = time.time()
+    shown = set()
+    while pending:
+        for n in list(pending):
+            try:
+                with cfg.connect(n, timeout=2) as c:
+                    c.execute("select 1")
+                pending.remove(n)
+                print(f"  kết nối được {cfg.label(n)}")
+            except psycopg.Error:
+                if n not in shown and cfg.machine_of(n) != cfg.here:
+                    print(f"  đang chờ {cfg.label(n)} — hãy chạy `make all MACHINE={cfg.machine_of(n)}` trên máy đó")
+                    shown.add(n)
+        if pending and time.time() - t0 > timeout:
+            die(f"không kết nối được: {', '.join(pending)}")
+        if pending:
+            time.sleep(2)
+
+
+def copy_csv(conn, table: str, path: Path):
+    with conn.cursor() as cur, open(path, "rb") as f:
+        with cur.copy(f"COPY {table} FROM STDIN WITH (FORMAT csv, HEADER true)") as cp:
+            while chunk := f.read(1 << 20):
+                cp.write(chunk)
+
+
+def load_ref(cfg: Config, src: Path):
+    with cfg.connect("ref", autocommit=False) as c:
+        c.execute((SQL_DIR / "schema_central.sql").read_text(encoding="utf-8"))
+        for t in ALL_TABLES:
+            copy_csv(c, t, src / f"{t}.csv")
+        c.commit()
+        c.autocommit = True
+        c.execute("ANALYZE")
+    print(f"  ref: đã nạp {len(ALL_TABLES)} bảng từ {src.relative_to(ROOT)}")
+
+
+def site_sql(cfg: Config, site: str) -> str:
+    no = cfg.sites[site]["no"]
+    sql = (SQL_DIR / "site_schema.sql").read_text(encoding="utf-8")
+    sql = (sql.replace("__SITE__", site)
+              .replace("__ID_LO__", str(no * ID_BLOCK + 1))
+              .replace("__ID_HI__", str((no + 1) * ID_BLOCK - 1)))
+    if site == cfg.central:
+        sql += f"\nCREATE SEQUENCE tour_group_id_seq START {TOUR_GROUP_NEW_START};  -- id đoàn tour mới (cấp ở trạm trung tâm)\n"
+    return sql
+
+
+def load_site(cfg: Config, site: str, frag: Path):
+    with cfg.connect(site, autocommit=False) as c:
+        # dọn phần liên kết cũ ở trạm trung tâm (khung nhìn all_* phụ thuộc bảng cục bộ)
+        if site == cfg.central:
+            c.execute("DROP SCHEMA IF EXISTS ref CASCADE")
+            for s in cfg.remote_sites():
+                c.execute(f"DROP SCHEMA IF EXISTS s_{s} CASCADE")
+            for t in ALL_TABLES:
+                c.execute(f"DROP VIEW IF EXISTS all_{t} CASCADE")
+        c.execute(site_sql(cfg, site))
+        for t in ALL_TABLES:
+            copy_csv(c, t, frag / site / f"{t}.csv")
+        c.commit()
+        c.autocommit = True
+        c.execute("ANALYZE")
+        counts = {t: c.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for t in ALL_TABLES}
+    print(f"  {site}: đã nạp mảnh ({counts['hotel']} khách sạn, {counts['room']} phòng, "
+          f"{counts['booking']} lượt đặt) vào {cfg.label(site)}")
     return counts
 
 
 def main():
-    if not (SITE_DIR / "expected.json").exists():
-        sys.exit("Chưa chia mảnh. Chạy `make data` trước.")
-    expected = json.loads((SITE_DIR / "expected.json").read_text(encoding="utf-8"))
-    summary = json.loads((DATA_DIR / "summary.json").read_text(encoding="utf-8"))
-    ok = True
-    t0 = time.time()
-    # 1) CSDL đối chứng
-    recreate(CENTRAL, DB["refdb"])
-    with connect(CENTRAL, db=DB["refdb"]) as c:
-        c.execute(SCHEMA)
-        got = copy_dir(c, DATA_DIR)
-    bad = {t: (got[t], summary["rows"][t]) for t in got if got[t] != summary["rows"][t]}
-    print(f"[ref] {DB['refdb']} @ {CENTRAL}: {sum(got.values())} dòng  "
-          + ("khớp summary.json" if not bad else f"LỆCH {bad}"))
-    ok &= not bad
-    # 2) từng trạm
-    for s in SITES:
-        info = site(s)
-        recreate(s, DB["dbname"])
-        with connect(s) as c:
-            c.execute(SCHEMA)
-            c.execute(EXTRA.replace("{{REGION}}", s).replace("{{SITE_NO}}", str(info["site_no"]))
-                      .replace("{{DBNAME}}", DB["dbname"]))
-            if info["central"]:
-                # chỉ trạm trung tâm cấp mã đoàn tour mới (bảng sao chép)
-                c.execute("CREATE SEQUENCE tour_group_id_seq START 1000000 INCREMENT 10")
-            got = copy_dir(c, SITE_DIR / s)
-        bad = {t: (got[t], expected["rows_per_site"][s][t]) for t in got
-               if got[t] != expected["rows_per_site"][s][t]}
-        print(f"[{s:<8}] máy {info['machine']} {info['ip']}:{info['port']}  "
-              f"hotel={got['hotel']} room={got['room']} booking={got['booking']}  "
-              + ("khớp" if not bad else f"LỆCH {bad}"))
-        ok &= not bad
-    print(f"Nạp xong sau {time.time() - t0:.1f} s")
-    sys.exit(0 if ok else 1)
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--size", default=None)
+    ap.add_argument("--wait", type=int, default=600)
+    a = ap.parse_args()
+    cfg = Config()
+    size = a.size or cfg.size
+    src = ROOT / "datagen" / "de06_hotel" / "output" / size
+    frag = ROOT / "build" / "fragments" / size
+
+    (RESULTS / "events.jsonl").unlink(missing_ok=True)   # nhật ký sự kiện của dashboard bắt đầu lại
+    print("1) Chờ các trạm sẵn sàng")
+    wait_all(cfg, a.wait)
+    print("2) Chia dữ liệu thành mảnh")
+    expected = split(size)
+    print("3) Nạp CSDL đối chứng")
+    load_ref(cfg, src)
+    print("4) Nạp mảnh vào từng trạm")
+    actual = {s: load_site(cfg, s, frag) for s in SITES_ORDER}
+
+    print("5) Đối chiếu số dòng")
+    summary = json.loads((src / "summary.json").read_text(encoding="utf-8"))
+    bad = 0
+    RESULTS.mkdir(exist_ok=True)
+    with open(RESULTS / "n1_fragments.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["table", "kind"] + SITES_ORDER + ["sum_fragments", "ref_summary_json", "match"])
+        for t in ALL_TABLES:
+            vals = [actual[s][t] for s in SITES_ORDER]
+            exp = [expected["fragments"][s][t] for s in SITES_ORDER]
+            total = summary["rows"][t]
+            if t in REPLICATED:
+                match = all(v == total for v in vals)
+                kind, sm = "replicated", vals[0]
+            else:
+                match = sum(vals) == total
+                kind, sm = "fragmented", sum(vals)
+            match = match and vals == exp
+            w.writerow([t, kind] + vals + [sm, total, match])
+            (ok if match else fail)(f"{t:<18} {vals}  tổng={sm}  summary.json={total}")
+            bad += not match
+    hreg = summary["by_region"]["hotel.region"]
+    for s in SITES_ORDER:
+        if actual[s]["hotel"] != hreg[s]:
+            fail(f"hotel@{s}={actual[s]['hotel']} khác summary.json {hreg[s]}")
+            bad += 1
+    if expected["cross_site_rows"] == summary["cross_site"]["rows"]:
+        ok(f"dòng liên vùng = {expected['cross_site_rows']} (rate {summary['cross_site']['rate']}) khớp summary.json")
+    else:
+        fail("số dòng liên vùng khác summary.json")
+        bad += 1
+    print("-> results/n1_fragments.csv")
+    sys.exit(1 if bad else 0)
 
 
 if __name__ == "__main__":

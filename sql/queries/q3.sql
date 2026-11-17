@@ -1,12 +1,31 @@
--- Q3 · Toàn bộ phòng đã đặt của một đoàn tour đi qua nhiều vùng, sắp theo ngày nhận phòng
--- :tg = mã đoàn (mặc định 410: có phòng ở dalat, phuquoc, danang). Trong psql: \set tg 410
--- tour_group được sao chép nhưng booking chia theo vùng KHÁCH SẠN, trung tâm không biết trước đoàn
--- có phòng ở vùng nào => hỏi cả 4 trạm; WHERE tour_group_id = :tg được đẩy xuống từng trạm.
-SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name
+-- Q3 · Toàn bộ phòng đã đặt của một đoàn tour đi qua nhiều vùng (đoàn TG0001), sắp theo ngày nhận phòng
+-- Đoàn 1 luôn đi ≥ 2 vùng (bộ sinh ép). Booking chia theo vùng KHÁCH SẠN -> phòng của đoàn nằm ở nhiều trạm.
+-- Không bảng nào cho biết đoàn đi những vùng nào -> không loại được trạm nào: hỏi cả 4 trạm (3 trạm xa).
+-- Mỗi trạm tự lọc tour_group_id và kết nối booking⋈room⋈hotel (đẩy xuống); trung tâm chỉ UNION ALL + sắp xếp.
+SELECT *
 FROM (
-  SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name FROM s_dalat.v_tour_room WHERE tour_group_id = :tg
-  UNION ALL SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name FROM s_nhatrang.v_tour_room WHERE tour_group_id = :tg
-  UNION ALL SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name FROM s_phuquoc.v_tour_room WHERE tour_group_id = :tg
-  UNION ALL SELECT booking_id, region, hotel, room_id, room_type_code, check_in, nights, guest_name FROM s_danang.v_tour_room WHERE tour_group_id = :tg
+    -- nhatrang (cục bộ)
+    SELECT b.booking_id, b.check_in, b.nights, h.region, h.name AS hotel, r.room_id, r.room_type_code,
+           b.guest_name, b.request ->> 'meal_plan' AS meal_plan
+    FROM public.booking b JOIN public.room r ON r.room_id = b.room_id JOIN public.hotel h ON h.hotel_id = r.hotel_id
+    WHERE b.tour_group_id = 1
+    UNION ALL
+    -- dalat
+    SELECT b.booking_id, b.check_in, b.nights, h.region, h.name AS hotel, r.room_id, r.room_type_code,
+           b.guest_name, b.request ->> 'meal_plan' AS meal_plan
+    FROM s_dalat.booking b JOIN s_dalat.room r ON r.room_id = b.room_id JOIN s_dalat.hotel h ON h.hotel_id = r.hotel_id
+    WHERE b.tour_group_id = 1
+    UNION ALL
+    -- phuquoc
+    SELECT b.booking_id, b.check_in, b.nights, h.region, h.name AS hotel, r.room_id, r.room_type_code,
+           b.guest_name, b.request ->> 'meal_plan' AS meal_plan
+    FROM s_phuquoc.booking b JOIN s_phuquoc.room r ON r.room_id = b.room_id JOIN s_phuquoc.hotel h ON h.hotel_id = r.hotel_id
+    WHERE b.tour_group_id = 1
+    UNION ALL
+    -- danang
+    SELECT b.booking_id, b.check_in, b.nights, h.region, h.name AS hotel, r.room_id, r.room_type_code,
+           b.guest_name, b.request ->> 'meal_plan' AS meal_plan
+    FROM s_danang.booking b JOIN s_danang.room r ON r.room_id = b.room_id JOIN s_danang.hotel h ON h.hotel_id = r.hotel_id
+    WHERE b.tour_group_id = 1
 ) x
 ORDER BY check_in, booking_id;

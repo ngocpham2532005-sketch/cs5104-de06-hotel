@@ -1,131 +1,114 @@
-"""
-Dashboard theo dõi (máy A) — `make dash`, mở http://<máy A>:8081
+"""Dashboard (máy A): mỗi trạm một ô; đọc THẲNG từng trạm (không qua postgres_fdw); làm mới mỗi 1 giây."""
+import time
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
-- Mỗi trạm một ô: máy, IP:cổng, trạng thái kết nối (xanh/đỏ), số dòng từng bảng.
-  Đọc THẲNG từng trạm (mỗi trạm một luồng, kết nối riêng), KHÔNG qua postgres_fdw.
-- Bảng tổng hợp: tổng các mảnh (bảng chia) / giá trị sao chép so với CSDL đối chứng.
-- Nhật ký sự kiện: dòng mới ở trạm nào, trạm mất kết nối / kết nối lại.
-- Luồng nền đọc mỗi 1 s; trang tự làm mới mỗi 1 s (≤ 2 s theo yêu cầu).
-"""
-import datetime as dt, threading, time
-from web import CSS, serve
-import cfg
-from cfg import ALL_TABLES, FRAGMENTED, REGION_VN, SITES, connect, connect_ref, site
+import pandas as pd
+import psycopg
+import streamlit as st
+from lib import ALL_TABLES, REGION_NAME, SITES_ORDER, cfg, connect, log_event, read_events
 
-POLL = 1.0
-COUNT_SQL = "SELECT " + ", ".join(f"(SELECT count(*) FROM {t})" for t in ALL_TABLES)
-lock = threading.Lock()
-STATE = {s: {"up": None, "counts": {}, "ms": None, "since": None, "error": ""} for s in SITES + ["ref"]}
-EVENTS = []
+st.set_page_config(page_title="CS5104 Đề 6 · Dashboard", page_icon="📊", layout="wide")
+REPL = {"room_type", "tour_group"}
+COUNT_SQL = "SELECT " + ", ".join(f"(SELECT count(*) FROM {t})" for t in ALL_TABLES) + \
+            ", (SELECT max(booking_id) FROM booking WHERE booking_id >= 10000000)"
 
 
-def log(kind, text):
-    with lock:
-        EVENTS.insert(0, {"t": dt.datetime.now().strftime("%H:%M:%S"), "kind": kind, "text": text})
-        del EVENTS[200:]
+def poll(node: str):
+    t0 = time.perf_counter()
+    try:
+        with connect(node, timeout=1) as c:
+            row = c.execute(COUNT_SQL).fetchone()
+        return node, {"up": True, "ms": (time.perf_counter() - t0) * 1000,
+                      "counts": dict(zip(ALL_TABLES, row[:-1])), "last_new": row[-1]}
+    except psycopg.Error as e:
+        return node, {"up": False, "err": str(e).strip().splitlines()[0][:90]}
 
 
-def watcher(s):
-    conn = None
-    label = "CSDL đối chứng" if s == "ref" else f"trạm {s}"
-    while True:
-        t0 = time.perf_counter()
-        try:
-            if conn is None:
-                conn = (connect_ref if s == "ref" else lambda **k: connect(s, **k))(connect_timeout=1, timeout=3, app="dashboard")
-            _, rows = conn.query(COUNT_SQL)
-            counts = dict(zip(ALL_TABLES, rows[0]))
-            ms = (time.perf_counter() - t0) * 1000
-            with lock:
-                st = STATE[s]; prev_up, prev = st["up"], st["counts"]
-                st.update(up=True, counts=counts, ms=round(ms, 1), error="")
-                if prev_up is not True:
-                    st["since"] = time.time()
-            if prev_up is False:
-                log("up", f"{label} KẾT NỐI LẠI")
-            elif prev_up is None:
-                log("up", f"{label} kết nối OK")
-            if prev and s != "ref":
-                diff = {t: counts[t] - prev.get(t, 0) for t in ALL_TABLES if counts[t] != prev.get(t, 0)}
-                if diff:
-                    log("data", f"{label}: " + ", ".join(f"{t} {d:+d}" for t, d in diff.items()))
-        except Exception as e:  # noqa: BLE001
-            if conn:
-                conn.close()
-            conn = None
-            with lock:
-                st = STATE[s]; prev_up = st["up"]
-                st.update(up=False, ms=None, error=str(e)[:160])
-                if prev_up is not False:
-                    st["since"] = time.time()
-            if prev_up is not False:
-                log("down", f"{label} MẤT KẾT NỐI ({str(e)[:80]})")
-        time.sleep(max(0.0, POLL - (time.perf_counter() - t0)))
+@st.cache_resource
+def pool():
+    return ThreadPoolExecutor(8)
 
 
-def api_state(_):
-    with lock:
-        sites = []
-        for s in SITES:
-            i = site(s); st = STATE[s]
-            sites.append({"site": s, "region": REGION_VN[s], "machine": i["machine"], "ip": i["ip"], "port": i["port"],
-                          "central": i["central"], **st})
-        ref = dict(STATE["ref"])
-        events = list(EVENTS[:60])
-    totals = []
+def snapshot():
+    return dict(pool().map(poll, SITES_ORDER + ["ref"]))
+
+
+def detect(prev, cur):
+    """Sinh sự kiện: trạm mất/kết nối lại, dòng mới ở trạm nào."""
+    for n, s in cur.items():
+        p = prev.get(n)
+        if p is None:
+            continue
+        if p["up"] and not s["up"]:
+            log_event("down", n, f"🔴 trạm {n} (máy {cfg.machine_of(n)}) MẤT KẾT NỐI")
+        elif not p["up"] and s["up"]:
+            log_event("up", n, f"🟢 trạm {n} (máy {cfg.machine_of(n)}) KẾT NỐI LẠI")
+        elif p["up"] and s["up"] and n != "ref":
+            d = s["counts"]["booking"] - p["counts"]["booking"]
+            if d:
+                log_event("rows", n, f"➕ {d} lượt đặt mới ở trạm {n} (máy {cfg.machine_of(n)})")
+
+
+st.title("📊 Dashboard · 4 trạm PostgreSQL trên 2 máy")
+
+
+@st.fragment(run_every=1)
+def live():
+    cur = snapshot()
+    prev = st.session_state.get("prev", {})
+    detect(prev, cur)
+    st.session_state["prev"] = cur
+    st.caption(f"Cập nhật {datetime.now():%H:%M:%S} · đọc thẳng từng trạm bằng psycopg (không qua postgres_fdw) · "
+               f"cấu hình {cfg.path.name}")
+
+    cols = st.columns(4)
+    for col, s in zip(cols, SITES_ORDER):
+        info = cur[s]
+        m = cfg.machine_of(s)
+        with col.container(border=True):
+            dot = "🟢" if info["up"] else "🔴"
+            central = " · ⭐ trung tâm" if s == cfg.central else ""
+            st.markdown(f"### {dot} {s}{central}")
+            st.markdown(f"**{REGION_NAME[s]}** · máy **{m}** ({cfg.machines[m]['os']})  \n"
+                        f"`{cfg.machine_ip(s)}:{cfg.node(s)['port']}`")
+            if info["up"]:
+                df = pd.DataFrame({"bảng": ALL_TABLES, "số dòng": [info["counts"][t] for t in ALL_TABLES]})
+                df["loại"] = ["sao chép" if t in REPL else "mảnh" for t in ALL_TABLES]
+                st.dataframe(df, hide_index=True, width="stretch", height=360)
+                st.caption(f"phản hồi {info['ms']:.1f} ms · booking_id mới nhất: {info['last_new'] or '—'}")
+            else:
+                st.error(f"MẤT KẾT NỐI\n\n{info['err']}")
+
+    st.subheader("Tổng hợp so với CSDL đối chứng")
+    ref = cur["ref"]
+    rows = []
     for t in ALL_TABLES:
-        up = [x for x in sites if x["up"] and x["counts"]]
-        if t in FRAGMENTED:
-            val = sum(x["counts"][t] for x in up); kind = "chia"
+        per = [cur[s]["counts"][t] if cur[s]["up"] else None for s in SITES_ORDER]
+        if t in REPL:
+            total = per[SITES_ORDER.index(cfg.central)]
+            rule = "4 bản sao bằng nhau"
+            okv = all(p == total for p in per if p is not None)
         else:
-            vals = {x["counts"][t] for x in up}
-            val = next(iter(vals)) if len(vals) == 1 else None; kind = "sao chép" + ("" if len(vals) <= 1 else " — LỆCH giữa các trạm!")
-        missing = [x["site"] for x in sites if not x["up"]]
-        r = ref["counts"].get(t) if ref["up"] else None
-        totals.append({"table": t, "kind": kind, "value": val, "ref": r, "missing": missing,
-                       "match": (val == r and not missing) if r is not None and val is not None else None})
-    return {"sites": sites, "ref": ref, "totals": totals, "events": events, "now": dt.datetime.now().strftime("%H:%M:%S")}
+            total = sum(p for p in per if p is not None) if None not in per else None
+            rule = "Σ mảnh = đối chứng"
+            okv = None
+        r = ref["counts"][t] if ref["up"] else None
+        if okv is None:
+            okv = total is not None and total == r
+        else:
+            okv = okv and total == r
+        rows.append({"bảng": t, **{s: p for s, p in zip(SITES_ORDER, per)}, "tổng/bản sao": total,
+                     "đối chứng (ref)": r, "quy tắc": rule, "khớp": "✅" if okv else ("⚠️ thiếu trạm" if None in per else "❌")})
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+
+    st.subheader("Nhật ký sự kiện")
+    ev = read_events(25)
+    if ev:
+        st.dataframe(pd.DataFrame([{"giờ": e["t"], "trạm": e["site"], "sự kiện": e["msg"]} for e in ev]),
+                     hide_index=True, width="stretch", height=300)
+    else:
+        st.caption("(chưa có sự kiện)")
 
 
-PAGE = """<!doctype html><html lang="vi"><meta charset="utf-8"><title>Dashboard — Đề 6 Khách sạn</title>
-<style>""" + CSS + """
-.site{border-top:6px solid #9aa0a6}.site.up{border-top-color:#1e8e3e}.site.down{border-top-color:#d93025;background:#fff7f6}
-.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:#9aa0a6}.up .dot{background:#1e8e3e}.down .dot{background:#d93025}
-.big{font-size:22px;font-weight:600}.ev{font-size:12.5px;font-family:ui-monospace,Menlo,Consolas,monospace;max-height:340px;overflow:auto}
-.ev div{padding:2px 0;border-bottom:1px dashed #eee}.ev .down{color:#c5221f}.ev .up{color:#137333}.ev .data{color:#1a4fbf}
-td.flash{background:#fff3c4;transition:background 1.5s}
-</style>
-<header><h1>Dashboard · Chuỗi khách sạn nghỉ dưỡng — 4 trạm</h1><span>đọc thẳng từng trạm, không qua postgres_fdw · làm mới mỗi 1 s · <b id="now"></b></span></header>
-<main><div id="sites" class="grid g4"></div>
-<div class="grid g2"><div class="card"><h2>Tổng hợp so với CSDL đối chứng (hotel_ref)</h2><div id="totals"></div></div>
-<div class="card"><h2>Nhật ký sự kiện</h2><div id="events" class="ev"></div></div></div></main>
-<script>
-const TABLES = %TABLES%; let PREV = {};
-const fmt = n => n==null ? '—' : Number(n).toLocaleString('vi-VN');
-async function tick(){
-  let j; try { j = await (await fetch('/api/state')).json(); } catch(e){ document.getElementById('now').textContent='mất kết nối tới dashboard'; return; }
-  document.getElementById('now').textContent = j.now;
-  document.getElementById('sites').innerHTML = j.sites.map(s => {
-    const cls = s.up===true?'up':(s.up===false?'down':'');
-    const rows = TABLES.map(t => { const v=s.counts[t]; const k=s.site+t; const fl = PREV[k]!=null && v!=null && PREV[k]!==v; PREV[k]=v;
-      return `<tr><td>${t}</td><td class="n ${fl?'flash':''}">${fmt(v)}</td></tr>`; }).join('');
-    return `<div class="card site ${cls}"><div><span class="dot"></span><b>${s.region}</b> · trạm ${s.site}${s.central?' (trung tâm)':''}</div>
-      <div class="muted">máy ${s.machine} · ${s.ip}:${s.port} · ${s.up?('đọc '+s.ms+' ms'):(s.up===false?'<b class="bad">MẤT KẾT NỐI</b>':'đang kết nối…')}</div>
-      <div class="big">${fmt(s.counts.booking)} <span class="muted">booking</span></div>
-      <table>${rows}</table>${s.error?'<div class="muted bad">'+s.error+'</div>':''}</div>`; }).join('');
-  document.getElementById('totals').innerHTML = '<table><tr><th>bảng</th><th>loại</th><th class="n">hệ phân tán</th><th class="n">đối chứng</th><th>khớp</th></tr>' +
-    j.totals.map(t => `<tr><td>${t.table}</td><td class="muted">${t.kind}</td><td class="n">${fmt(t.value)}</td><td class="n">${fmt(t.ref)}</td>
-      <td>${t.match===true?'<span class="ok">✓</span>':(t.missing.length?'<span class="bad">thiếu '+t.missing.join(',')+'</span>':(t.match===false?'<span class="bad">✗</span>':'—'))}</td></tr>`).join('') + '</table>' +
-    `<div class="muted">CSDL đối chứng: ${j.ref.up?'kết nối OK':'<b class="bad">mất kết nối</b>'} · bảng chia = tổng các mảnh; bảng sao chép = giá trị chung của các trạm</div>`;
-  document.getElementById('events').innerHTML = j.events.map(e => `<div class="${e.kind}">${e.t}  ${e.text}</div>`).join('');
-}
-tick(); setInterval(tick, 1000);
-</script></html>"""
-
-
-if __name__ == "__main__":
-    for s in SITES + ["ref"]:
-        threading.Thread(target=watcher, args=(s,), daemon=True).start()
-    import json
-    serve(cfg.CFG["app"].get("dash_port", 8081), PAGE.replace("%TABLES%", json.dumps(ALL_TABLES)),
-          {"/api/state": api_state}, title="Dashboard")
+live()

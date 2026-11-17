@@ -1,0 +1,72 @@
+-- Q3 · naive_all_views · chạy tại nhatrang · trễ 30 ms
+Sort (actual time=540.758..540.778 rows=46.00 loops=1)
+  Output: booking.booking_id, booking.check_in, booking.nights, hotel.region, hotel.name, room.room_id, room.room_type_code, booking.guest_name, ((booking.request ->> 'meal_plan'::text))
+  Sort Key: booking.check_in, booking.booking_id
+  Sort Method: quicksort  Memory: 29kB
+  Buffers: shared hit=28
+  ->  Hash Join (actual time=540.572..540.733 rows=46.00 loops=1)
+        Output: booking.booking_id, booking.check_in, booking.nights, hotel.region, hotel.name, room.room_id, room.room_type_code, booking.guest_name, (booking.request ->> 'meal_plan'::text)
+        Hash Cond: (booking.room_id = room.room_id)
+        Buffers: shared hit=28
+        ->  Append (actual time=119.947..120.065 rows=46.00 loops=1)
+              Buffers: shared hit=16
+              ->  Bitmap Heap Scan on public.booking (actual time=0.073..0.143 rows=14.00 loops=1)
+                    Output: booking.booking_id, booking.check_in, booking.nights, booking.guest_name, booking.request, booking.room_id
+                    Recheck Cond: (booking.tour_group_id = 1)
+                    Heap Blocks: exact=14
+                    Buffers: shared hit=16
+                    ->  Bitmap Index Scan on booking_tg_idx (actual time=0.034..0.035 rows=14.00 loops=1)
+                          Index Cond: (booking.tour_group_id = 1)
+                          Index Searches: 1
+                          Buffers: shared hit=2
+              ->  Async Foreign Scan on s_dalat.booking booking_1 (actual time=32.471..32.471 rows=0.00 loops=1)
+                    Output: booking_1.booking_id, booking_1.check_in, booking_1.nights, booking_1.guest_name, booking_1.request, booking_1.room_id
+                    Remote SQL: SELECT booking_id, room_id, guest_name, check_in, nights, request FROM public.booking WHERE ((tour_group_id = 1))
+              ->  Async Foreign Scan on s_phuquoc.booking booking_2 (actual time=38.443..38.455 rows=22.00 loops=1)
+                    Output: booking_2.booking_id, booking_2.check_in, booking_2.nights, booking_2.guest_name, booking_2.request, booking_2.room_id
+                    Remote SQL: SELECT booking_id, room_id, guest_name, check_in, nights, request FROM public.booking WHERE ((tour_group_id = 1))
+              ->  Async Foreign Scan on s_danang.booking booking_3 (actual time=48.927..48.932 rows=10.00 loops=1)
+                    Output: booking_3.booking_id, booking_3.check_in, booking_3.nights, booking_3.guest_name, booking_3.request, booking_3.room_id
+                    Remote SQL: SELECT booking_id, room_id, guest_name, check_in, nights, request FROM public.booking WHERE ((tour_group_id = 1))
+        ->  Hash (actual time=420.593..420.603 rows=6000.00 loops=1)
+              Output: room.room_id, room.room_type_code, hotel.region, hotel.name
+              Buckets: 8192 (originally 2048)  Batches: 1 (originally 1)  Memory Usage: 546kB
+              Buffers: shared hit=12
+              ->  Hash Join (actual time=231.507..418.502 rows=6000.00 loops=1)
+                    Output: room.room_id, room.room_type_code, hotel.region, hotel.name
+                    Hash Cond: (room.hotel_id = hotel.hotel_id)
+                    Buffers: shared hit=12
+                    ->  Append (actual time=0.049..184.945 rows=6000.00 loops=1)
+                          Buffers: shared hit=11
+                          ->  Seq Scan on public.room (actual time=0.045..0.434 rows=1662.00 loops=1)
+                                Output: room.room_id, room.room_type_code, room.hotel_id
+                                Buffers: shared hit=11
+                          ->  Async Foreign Scan on s_dalat.room room_1 (actual time=36.487..36.788 rows=1193.00 loops=1)
+                                Output: room_1.room_id, room_1.room_type_code, room_1.hotel_id
+                                Remote SQL: SELECT room_id, hotel_id, room_type_code FROM public.room
+                          ->  Async Foreign Scan on s_phuquoc.room room_2 (actual time=39.880..40.230 rows=1387.00 loops=1)
+                                Output: room_2.room_id, room_2.room_type_code, room_2.hotel_id
+                                Remote SQL: SELECT room_id, hotel_id, room_type_code FROM public.room
+                          ->  Async Foreign Scan on s_danang.room room_3 (actual time=69.856..70.053 rows=1758.00 loops=1)
+                                Output: room_3.room_id, room_3.room_type_code, room_3.hotel_id
+                                Remote SQL: SELECT room_id, hotel_id, room_type_code FROM public.room
+                    ->  Hash (actual time=231.436..231.441 rows=60.00 loops=1)
+                          Output: hotel.region, hotel.name, hotel.hotel_id
+                          Buckets: 1024  Batches: 1  Memory Usage: 13kB
+                          Buffers: shared hit=1
+                          ->  Append (actual time=0.012..231.369 rows=60.00 loops=1)
+                                Buffers: shared hit=1
+                                ->  Seq Scan on public.hotel (actual time=0.009..0.013 rows=16.00 loops=1)
+                                      Output: hotel.region, hotel.name, hotel.hotel_id
+                                      Buffers: shared hit=1
+                                ->  Async Foreign Scan on s_dalat.hotel hotel_1 (actual time=33.319..33.323 rows=13.00 loops=1)
+                                      Output: hotel_1.region, hotel_1.name, hotel_1.hotel_id
+                                      Remote SQL: SELECT hotel_id, name, region FROM public.hotel
+                                ->  Async Foreign Scan on s_phuquoc.hotel hotel_2 (actual time=42.462..42.467 rows=14.00 loops=1)
+                                      Output: hotel_2.region, hotel_2.name, hotel_2.hotel_id
+                                      Remote SQL: SELECT hotel_id, name, region FROM public.hotel
+                                ->  Async Foreign Scan on s_danang.hotel hotel_3 (actual time=40.119..40.124 rows=17.00 loops=1)
+                                      Output: hotel_3.region, hotel_3.name, hotel_3.hotel_id
+                                      Remote SQL: SELECT hotel_id, name, region FROM public.hotel
+Planning Time: 0.490 ms
+Execution Time: 982.356 ms

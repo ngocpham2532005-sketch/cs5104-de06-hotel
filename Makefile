@@ -1,87 +1,153 @@
-# CS5104 · Đề 6 — Chuỗi khách sạn nghỉ dưỡng (4 trạm, 2 máy)
-# Máy B:  make up MACHINE=B
-# Máy A:  make all          (bật trạm máy A, chờ máy B, sinh dữ liệu, nạp, nối, kiểm tra, đo, mở giao diện)
-PY      ?= python3
-MACHINE ?= A
-SIZE    ?= lab
-SITE    ?= phuquoc
-COMPOSE  = docker compose -f build/compose.$(MACHINE).yml
-export SIZE
+# CS5104 · Đề 6 · Chuỗi khách sạn nghỉ dưỡng — hệ CSDL phân tán 4 trạm trên 2 máy
+#
+#   Máy B (Windows):  make all MACHINE=B        -> bật phuquoc, danang
+#   Máy A (macOS):    make all                  -> bật nhatrang, dalat, ref; sinh + nạp dữ liệu; link; check;
+#                                                  bench; mở giao diện nhập liệu và dashboard
+#   Thử trên một máy: make all DEPLOY=deploy.local.toml  rồi  make up MACHINE=B DEPLOY=deploy.local.toml
+#
+# Mọi công thức chỉ gọi `docker` và `python`, nên chạy được bằng GNU make trên macOS, Linux và Windows.
 
-.PHONY: help up data load link check bench bench-all delay-on delay-off entry dash apps stop-apps all down stop-site start-site psql
+MACHINE ?= A
+SIZE    ?=
+DEPLOY  ?= deploy.toml
+PYTHONUTF8 := 1
+export MACHINE DEPLOY SIZE PYTHONUTF8
+
+ifeq ($(OS),Windows_NT)
+  PY  ?= python
+  VPY := .venv\Scripts\python.exe
+else
+  PY  ?= python3
+  VPY := .venv/bin/python
+endif
+
+GEN := datagen/de06_hotel/generate.py
+
+.PHONY: all up down data load link check bench slope delay-on delay-off entry dash q \
+        venv build status stop-site start-site apps-start apps-stop help \
+        ext-help ext-replica ext-replica-status ext-failover ext-failback ext-watch ext-replica-down \
+        ext-2pc-crash ext-2pc-status ext-2pc-recover ext-bench
 
 help:
-	@echo "make up MACHINE=A|B · data · load · link · check · bench · delay-on · delay-off · entry · dash · all · down"
-	@echo "phụ: bench-all (đo không trễ rồi có trễ) · stop-site/start-site SITE=phuquoc · apps (entry+dash chạy nền) · psql SITE=..."
+	@echo "make all [MACHINE=A|B] | up | data | load | link | check | bench | slope | delay-on | delay-off | entry | dash | down"
+	@echo "make stop-site SITE=phuquoc | start-site SITE=phuquoc | status | q [QUERIES='Q2 Q3'] [EXPLAIN=1]"
+	@echo "Phần mở rộng (ngoài yêu cầu đề): make ext-help"
 
-up:                       ## bật đúng các trạm của máy này (theo deploy.toml)
-	$(PY) tools/compose.py $(MACHINE)
-	$(COMPOSE) up -d --build --wait
+# ---------------------------------------------------------------- toàn bộ
+ifeq ($(MACHINE),B)
+all: build up
+	@echo "Máy B sẵn sàng. Trên máy A chạy: make all"
+else
+all: venv build up data load link check bench apps-start
+	@echo "Hệ đã dựng xong. Nhập liệu: http://localhost:8501   Dashboard: http://localhost:8502"
+endif
 
-data:                     ## chạy bộ sinh (seed cố định) rồi chia CSV thành mảnh
-	cd datagen/de06_hotel && $(PY) generate.py --size $(SIZE)
-	$(PY) tools/split.py
+# ---------------------------------------------------------------- hạ tầng
+venv:
+	$(PY) -m venv .venv
+	$(VPY) -m pip install -q --upgrade pip
+	$(VPY) -m pip install -q -r requirements.txt
 
-load:                     ## CSDL đối chứng + nạp đúng mảnh vào từng trạm (chạy ở máy A)
-	$(PY) tools/wait.py 600
-	$(PY) tools/load.py
+build:
+	$(PY) tools/deploy.py build
 
-link:                     ## postgres_fdw + khung nhìn all_* tại trạm trung tâm
-	$(PY) tools/link.py
+up:
+	$(PY) tools/deploy.py up $(MACHINE)
 
-check:                    ## ba quy tắc đúng đắn + khoá chính/khoá ngoại toàn hệ
-	$(PY) tools/check.py
+down: apps-stop
+	$(PY) tools/deploy.py down $(MACHINE)
 
-bench:                    ## đo Q1–Q5 (5 lần, bỏ lần đầu, trung vị), N1–N5, lưu results/
-	$(PY) tools/bench.py
+status:
+	$(PY) tools/deploy.py status
 
-bench-all:
-	$(PY) tools/delay.py off
-	$(PY) tools/bench.py
-	$(PY) tools/delay.py on
-	$(PY) tools/bench.py
-	$(PY) tools/delay.py off
-
-delay-on:                 ## trễ 30 ms trên đường trạm trung tâm -> máy B (DELAY_MODE=tc|proxy)
-	$(PY) tools/delay.py on
-
-delay-off:
-	$(PY) tools/delay.py off
-
-entry:                    ## giao diện nhập liệu http://localhost:8080
-	$(PY) app/entry.py
-
-dash:                     ## dashboard http://localhost:8081
-	$(PY) app/dash.py
-
-apps: stop-apps           ## chạy entry + dash ở chế độ nền (log trong logs/)
-	@mkdir -p logs
-	nohup $(PY) app/entry.py > logs/entry.log 2>&1 & echo $$! > logs/entry.pid
-	nohup $(PY) app/dash.py  > logs/dash.log  2>&1 & echo $$! > logs/dash.pid
-	@echo "Nhập liệu: http://localhost:8080   Dashboard: http://localhost:8081"
-
-stop-apps:
-	-@for f in logs/entry.pid logs/dash.pid; do [ -f $$f ] && kill $$(cat $$f) 2>/dev/null; rm -f $$f; done; true
-
-all:                      ## từ máy sạch, không thao tác tay (chạy ở máy A; máy B đã `make up MACHINE=B`)
-	$(MAKE) up MACHINE=A
-	$(MAKE) data
-	$(MAKE) load
-	$(MAKE) link
-	$(MAKE) check
-	$(MAKE) bench-all
-	$(MAKE) apps
-
-down: stop-apps           ## tắt và xoá các trạm của máy này
-	-$(PY) tools/delay.py off 2>/dev/null
-	$(PY) tools/compose.py $(MACHINE)
-	$(COMPOSE) down -v
-
-stop-site:                ## D8: tắt một trạm (chạy ở máy chứa trạm đó)
-	docker stop hotel_$(SITE)
+stop-site:
+	$(PY) tools/deploy.py stop $(SITE)
 
 start-site:
-	docker start hotel_$(SITE)
+	$(PY) tools/deploy.py start $(SITE)
 
-psql:                     ## mở psql vào một trạm: make psql SITE=nhatrang
-	docker exec -it hotel_$(SITE) psql -U postgres -d hotel
+# ---------------------------------------------------------------- dữ liệu
+data:
+	$(PY) $(GEN) --size mini
+	$(PY) $(GEN) --size lab
+
+load:
+	$(VPY) tools/load.py
+
+link:
+	$(VPY) tools/link.py
+
+check:
+	$(VPY) tools/check.py
+
+bench:
+	$(VPY) tools/bench.py
+
+# số vòng khứ hồi mỗi truy vấn: đo ở trễ 30 và 60 ms, (T60-T30)/30 -> results/rtt_slope.txt
+slope:
+	$(VPY) tools/rtt_slope.py
+
+delay-on:
+	$(VPY) tools/delay.py on
+
+delay-off:
+	$(VPY) tools/delay.py off
+
+q:                       ## demo D3–D6: chạy Q1–Q5, so với đối chứng (EXPLAIN=1 để in Remote SQL)
+	$(VPY) tools/demo.py $(QUERIES) $(if $(EXPLAIN),-e,)
+
+# ---------------------------------------------------------------- giao diện (máy A)
+entry:
+	$(VPY) -m streamlit run app/entry.py --server.port 8501 --server.headless true --browser.gatherUsageStats false
+
+dash:
+	$(VPY) -m streamlit run app/dash.py --server.port 8502 --server.headless true --browser.gatherUsageStats false
+
+apps-start:
+	$(VPY) tools/apps.py start
+
+apps-stop:
+	-$(VPY) tools/apps.py stop
+
+# ================================================================ PHẦN MỞ RỘNG (ngoài yêu cầu đề)
+# Không nằm trong `make all`; không đổi kết quả D1–D8, N1–N5. Chi tiết, kịch bản demo: docs/NANG_CAO.md
+#   E1  bản sao dự phòng (streaming replication) cho trạm phuquoc + chuyển đọc khi trạm chết
+#   E2  2PC có nhật ký điều phối bền vững + phục hồi giao dịch lưỡng lự
+RSITE ?=
+
+ext-help:
+	@echo "E1 · make ext-replica | ext-replica-status | ext-failover | ext-failback | ext-watch | ext-replica-down  [RSITE=phuquoc]"
+	@echo "E2 · make ext-2pc-crash CRASH=prepare|decision|mid-commit | ext-2pc-status | ext-2pc-recover [FORCE=1]"
+	@echo "So sánh phương án E1/E2: make ext-bench  (-> results/ext/ext_bench.csv)"
+	@echo "Xem docs/NANG_CAO.md"
+
+ext-replica:             ## E1: tạo bản sao dự phòng ở máy A (pg_basebackup qua LAN từ trạm chính ở máy B)
+	$(VPY) tools/ext_replica.py up $(RSITE)
+
+ext-replica-status:
+	$(VPY) tools/ext_replica.py status $(RSITE)
+
+ext-failover:            ## E1: postgres_fdw của trạm trung tâm đọc mảnh từ bản sao (chỉ đọc)
+	$(VPY) tools/ext_replica.py failover $(RSITE)
+
+ext-failback:
+	$(VPY) tools/ext_replica.py failback $(RSITE)
+
+ext-watch:               ## E1: tự failover/failback theo nhịp 1 s (Ctrl+C để dừng)
+	$(VPY) tools/ext_replica.py watch $(RSITE)
+
+ext-replica-down:
+	$(VPY) tools/ext_replica.py down $(RSITE)
+
+CRASH ?= decision
+ext-2pc-crash:           ## E2: tạo đoàn tour, bộ điều phối "chết" sau bước $(CRASH)
+	-$(VPY) tools/twopc.py create --crash $(CRASH)
+
+ext-2pc-status:
+	$(VPY) tools/twopc.py status
+
+ext-2pc-recover:
+	$(VPY) tools/twopc.py recover $(if $(FORCE),--force,)
+
+ext-bench:               ## so sánh: sync/async replication, đọc chính/bản sao, chi phí 2PC + nhật ký
+	$(VPY) tools/ext_bench.py

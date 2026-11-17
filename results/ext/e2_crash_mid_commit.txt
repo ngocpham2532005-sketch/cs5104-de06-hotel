@@ -1,0 +1,36 @@
+# E2 · bộ điều phối chết giữa pha 2 — 2026-11-15 20:40:12, 2 máy thật
+$ make ext-2pc-crash CRASH=mid-commit
+nhật ký: begin tg100006 (fsync)
+PREPARE TRANSACTION @ dalat ✓
+PREPARE TRANSACTION @ nhatrang ✓
+PREPARE TRANSACTION @ phuquoc ✓
+PREPARE TRANSACTION @ danang ✓
+nhật ký: commit tg100006 (fsync) — ĐIỂM CAM KẾT
+COMMIT PREPARED @ dalat ✓
+💥 GIẢ LẬP bộ điều phối chết sau bước 'mid-commit' (os._exit) — xem: make ext-2pc-status
+
+$ make ext-2pc-status
+Nhật ký bộ điều phối: results/2pc_coordinator.jsonl (6 giao dịch)
+  dalat     0 giao dịch lưỡng lự
+  nhatrang  1 giao dịch lưỡng lự
+            tg100006   prepared    0.2 s trước · nhật ký: commit -> recover sẽ COMMIT
+  phuquoc   1 giao dịch lưỡng lự
+            tg100006   prepared    0.2 s trước · nhật ký: commit -> recover sẽ COMMIT
+  danang    1 giao dịch lưỡng lự
+            tg100006   prepared    0.2 s trước · nhật ký: commit -> recover sẽ COMMIT
+  tg100006: nhật ký = commit · đã thấy ở ['dalat']  ⚠ bản sao KHÔNG nhất quán giữa các trạm
+  thử INSERT tour_group_id=100006 @ nhatrang: BỊ CHẶN bởi giao dịch đã PREPARE -> canceling statement due to lock timeout
+
+$ make ext-2pc-recover
+COMMIT PREPARED   tg100006 @ nhatrang   (nhật ký: commit)
+COMMIT PREPARED   tg100006 @ phuquoc   (nhật ký: commit)
+COMMIT PREPARED   tg100006 @ danang   (nhật ký: commit)
+Xong: 3 commit, 0 rollback, 0 bỏ qua.
+
+$ make ext-2pc-status
+Nhật ký bộ điều phối: results/2pc_coordinator.jsonl (6 giao dịch)
+  dalat     0 giao dịch lưỡng lự
+  nhatrang  0 giao dịch lưỡng lự
+  phuquoc   0 giao dịch lưỡng lự
+  danang    0 giao dịch lưỡng lự
+Không có giao dịch lưỡng lự.

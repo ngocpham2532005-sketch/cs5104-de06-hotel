@@ -1,0 +1,9 @@
+query,variant,delay_ms,run_at,run1_ms,run2_ms,run3_ms,run4_ms,run5_ms,median_ms,rows,matches_ref,sites_touched,remote_sites,foreign_scans,async_scans,explain_planning_ms,explain_execution_ms
+Q3,pushdown,0,nhatrang,285.721,60.877,56.01,64.989,58.07,59.474,46,True,4,dalat danang phuquoc,3,3,0.209,45.446
+Q3,pushdown_no_async,0,nhatrang,283.073,59.035,69.622,77.76,77.847,73.691,46,True,4,dalat danang phuquoc,3,0,0.299,77.402
+Q3,naive_all_views,0,nhatrang,525.982,238.207,154.076,178.333,149.09,166.204,46,True,4,dalat danang phuquoc,9,9,0.852,137.518
+Q3,single_region_group,0,nhatrang,240.13,64.318,61.578,109.494,52.686,62.948,45,True,4,dalat danang phuquoc,3,3,0.41,53.607
+Q3,pushdown,30,nhatrang,1648.157,413.281,420.24,442.535,436.151,428.196,46,True,4,dalat danang phuquoc,3,3,0.956,372.369
+Q3,pushdown_no_async,30,nhatrang,1737.487,503.607,492.822,489.674,503.922,498.215,46,True,4,dalat danang phuquoc,3,0,0.156,427.886
+Q3,naive_all_views,30,nhatrang,2238.347,1081.679,1057.484,1046.381,1020.108,1051.932,46,True,4,dalat danang phuquoc,9,9,0.49,982.356
+Q3,single_region_group,30,nhatrang,1612.323,426.22,415.906,436.472,426.407,426.313,45,True,4,dalat danang phuquoc,3,3,0.57,381.083

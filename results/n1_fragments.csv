@@ -1,0 +1,10 @@
+table,kind,dalat,nhatrang,phuquoc,danang,sum_fragments,ref_summary_json,match
+room_type,replicated,15,15,15,15,15,15,True
+tour_group,replicated,800,800,800,800,800,800,True
+hotel,fragmented,13,16,14,17,60,60,True
+room,fragmented,1193,1662,1387,1758,6000,6000,True
+booking,fragmented,16275,20091,19755,23879,80000,80000,True
+req_tour,fragmented,7537,8621,9285,10681,36124,36124,True
+req_business,fragmented,5498,7292,6710,8433,27933,27933,True
+req_family,fragmented,3240,4178,3760,4765,15943,15943,True
+req_family_child,fragmented,4833,6144,5740,7239,23956,23956,True

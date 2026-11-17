@@ -1,0 +1,75 @@
+-- Q2 · base_join_remote_est · chạy tại nhatrang · trễ 30 ms
+GroupAggregate (actual time=166.256..166.344 rows=60.00 loops=1)
+  Output: h.region, r.room_type_code, rt.name, sum((sum(((b.nights)::numeric * r.rate)))), (sum((count(*))))::bigint
+  Group Key: h.region, r.room_type_code, rt.name
+  Buffers: shared hit=414
+  ->  Sort (actual time=166.240..166.255 rows=60.00 loops=1)
+        Output: h.region, r.room_type_code, rt.name, (sum(((b.nights)::numeric * r.rate))), (count(*))
+        Sort Key: h.region, r.room_type_code, rt.name
+        Sort Method: quicksort  Memory: 28kB
+        Buffers: shared hit=414
+        ->  Nested Loop (actual time=137.815..166.138 rows=60.00 loops=1)
+              Output: h.region, r.room_type_code, rt.name, (sum(((b.nights)::numeric * r.rate))), (count(*))
+              Join Filter: (rt.room_type_code = r.room_type_code)
+              Rows Removed by Join Filter: 840
+              Buffers: shared hit=414
+              ->  Index Scan using room_type_pkey on public.room_type rt (actual time=0.028..0.041 rows=15.00 loops=1)
+                    Output: rt.room_type_code, rt.name, rt.capacity
+                    Index Searches: 1
+                    Buffers: shared hit=2
+              ->  Materialize (actual time=9.185..11.061 rows=60.00 loops=15)
+                    Output: h.region, r.room_type_code, (sum(((b.nights)::numeric * r.rate))), (count(*))
+                    Storage: Memory  Maximum Storage: 20kB
+                    Buffers: shared hit=412
+                    ->  Append (actual time=137.772..165.802 rows=60.00 loops=1)
+                          Buffers: shared hit=412
+                          ->  HashAggregate (actual time=19.571..19.581 rows=15.00 loops=1)
+                                Output: h.region, r.room_type_code, sum(((b.nights)::numeric * r.rate)), count(*)
+                                Group Key: h.region, r.room_type_code
+                                Batches: 1  Memory Usage: 32kB
+                                Buffers: shared hit=412
+                                ->  Hash Join (actual time=1.113..12.688 rows=13319.00 loops=1)
+                                      Output: h.region, r.room_type_code, b.nights, r.rate
+                                      Inner Unique: true
+                                      Hash Cond: (r.hotel_id = h.hotel_id)
+                                      Buffers: shared hit=412
+                                      ->  Hash Join (actual time=1.044..9.089 rows=13319.00 loops=1)
+                                            Output: b.nights, r.room_type_code, r.rate, r.hotel_id
+                                            Inner Unique: true
+                                            Hash Cond: (b.room_id = r.room_id)
+                                            Buffers: shared hit=411
+                                            ->  Seq Scan on public.booking b (actual time=0.016..3.792 rows=13319.00 loops=1)
+                                                  Output: b.booking_id, b.room_id, b.guest_name, b.check_in, b.nights, b.guest_type, b.tour_group_id, b.request
+                                                  Filter: ((b.check_in >= '2025-01-01'::date) AND (b.check_in < '2026-01-01'::date))
+                                                  Rows Removed by Filter: 6772
+                                                  Buffers: shared hit=400
+                                            ->  Hash (actual time=1.016..1.017 rows=1662.00 loops=1)
+                                                  Output: r.room_type_code, r.rate, r.room_id, r.hotel_id
+                                                  Buckets: 2048  Batches: 1  Memory Usage: 101kB
+                                                  Buffers: shared hit=11
+                                                  ->  Seq Scan on public.room r (actual time=0.012..0.437 rows=1662.00 loops=1)
+                                                        Output: r.room_type_code, r.rate, r.room_id, r.hotel_id
+                                                        Buffers: shared hit=11
+                                      ->  Hash (actual time=0.047..0.047 rows=16.00 loops=1)
+                                            Output: h.region, h.hotel_id
+                                            Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                            Buffers: shared hit=1
+                                            ->  Seq Scan on public.hotel h (actual time=0.029..0.033 rows=16.00 loops=1)
+                                                  Output: h.region, h.hotel_id
+                                                  Buffers: shared hit=1
+                          ->  Async Foreign Scan (actual time=33.027..33.029 rows=15.00 loops=1)
+                                Output: h_1.region, r_1.room_type_code, (sum(((b_1.nights)::numeric * r_1.rate))), (count(*))
+                                Relations: Aggregate on (((s_dalat.booking b_1) INNER JOIN (s_dalat.room r_1)) INNER JOIN (s_dalat.hotel h_1))
+                                Remote SQL: SELECT r4.region, r2.room_type_code, sum((r1.nights * r2.rate)), count(*) FROM ((public.booking r1 INNER JOIN public.room r2 ON (((r1.room_id = r2.room_id)) AND ((r1.check_in >= '2025-01-01')) AND ((r1.check_in < '2026-01-01')))) INNER JOIN public.hotel r4 ON (((r2.hotel_id = r4.hotel_id)))) GROUP BY 1, 2
+                          ->  Async Foreign Scan (actual time=41.428..41.430 rows=15.00 loops=1)
+                                Output: h_2.region, r_2.room_type_code, (sum(((b_2.nights)::numeric * r_2.rate))), (count(*))
+                                Relations: Aggregate on (((s_phuquoc.booking b_2) INNER JOIN (s_phuquoc.room r_2)) INNER JOIN (s_phuquoc.hotel h_2))
+                                Remote SQL: SELECT r4.region, r2.room_type_code, sum((r1.nights * r2.rate)), count(*) FROM ((public.booking r1 INNER JOIN public.room r2 ON (((r1.room_id = r2.room_id)) AND ((r1.check_in >= '2025-01-01')) AND ((r1.check_in < '2026-01-01')))) INNER JOIN public.hotel r4 ON (((r2.hotel_id = r4.hotel_id)))) GROUP BY 1, 2
+                          ->  Async Foreign Scan (actual time=43.833..43.836 rows=15.00 loops=1)
+                                Output: h_3.region, r_3.room_type_code, (sum(((b_3.nights)::numeric * r_3.rate))), (count(*))
+                                Relations: Aggregate on (((s_danang.booking b_3) INNER JOIN (s_danang.room r_3)) INNER JOIN (s_danang.hotel h_3))
+                                Remote SQL: SELECT r4.region, r2.room_type_code, sum((r1.nights * r2.rate)), count(*) FROM ((public.booking r1 INNER JOIN public.room r2 ON (((r1.room_id = r2.room_id)) AND ((r1.check_in >= '2025-01-01')) AND ((r1.check_in < '2026-01-01')))) INNER JOIN public.hotel r4 ON (((r2.hotel_id = r4.hotel_id)))) GROUP BY 1, 2
+Planning:
+  Buffers: shared hit=19
+Planning Time: 2227.449 ms
+Execution Time: 275.146 ms

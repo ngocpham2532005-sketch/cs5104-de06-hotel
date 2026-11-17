@@ -1,0 +1,8 @@
+# make ext-replica-status — 2026-11-15 20:40:12, 2 máy thật
+Trạm chính : phuquoc @ máy B (Windows 11, 192.168.100.198:5435)
+Bản sao    : phuquoc_replica @ máy A (macOS, 192.168.100.218:5445) · container running
+srv_phuquoc ở trạm trung tâm đang trỏ tới: 192.168.100.198:5435
+  [chính]   booking = 19765 · slots = [('cs5104_phuquoc_replica', True)]
+            walsender → walreceiver @ 172.19.0.1/32: streaming/async, chưa phát lại 0 byte, replay_lag None
+  [bản sao] booking = 19765 · in_recovery = True · đã phát lại tới 0/4039288 · giao dịch cuối cách đây 00:00:17.695515
+  KHỚP: chính 19765 · bản sao 19765

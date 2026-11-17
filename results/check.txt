@@ -1,92 +1,105 @@
-A. cục bộ
-  ✓ dalat     vị từ mảnh hotel                                           vi phạm = 0
-  ✓ dalat     dẫn xuất room ⋉ hotel                                      vi phạm = 0
-  ✓ dalat     dẫn xuất booking ⋉ room                                    vi phạm = 0
-  ✓ dalat     dẫn xuất req_tour ⋉ booking                                vi phạm = 0
-  ✓ dalat     dẫn xuất req_business ⋉ booking                            vi phạm = 0
-  ✓ dalat     dẫn xuất req_family ⋉ booking                              vi phạm = 0
-  ✓ dalat     dẫn xuất req_family_child ⋉ req_family                     vi phạm = 0
-  ✓ dalat     dải khoá dòng mới (đuôi = site_no)                         vi phạm = 0
-  ✓ dalat     CHECK mảnh + CHECK jsonb còn hiệu lực                      vi phạm = 0
-  ✓ dalat     jsonb ↔ req_tour                                           vi phạm = 0
-  ✓ dalat     jsonb ↔ req_business                                       vi phạm = 0
-  ✓ dalat     jsonb ↔ req_family                                         vi phạm = 0
-  ✓ dalat     jsonb children_ages ↔ req_family_child                     vi phạm = 0
-  ✓ nhatrang  vị từ mảnh hotel                                           vi phạm = 0
-  ✓ nhatrang  dẫn xuất room ⋉ hotel                                      vi phạm = 0
-  ✓ nhatrang  dẫn xuất booking ⋉ room                                    vi phạm = 0
-  ✓ nhatrang  dẫn xuất req_tour ⋉ booking                                vi phạm = 0
-  ✓ nhatrang  dẫn xuất req_business ⋉ booking                            vi phạm = 0
-  ✓ nhatrang  dẫn xuất req_family ⋉ booking                              vi phạm = 0
-  ✓ nhatrang  dẫn xuất req_family_child ⋉ req_family                     vi phạm = 0
-  ✓ nhatrang  dải khoá dòng mới (đuôi = site_no)                         vi phạm = 0
-  ✓ nhatrang  CHECK mảnh + CHECK jsonb còn hiệu lực                      vi phạm = 0
-  ✓ nhatrang  jsonb ↔ req_tour                                           vi phạm = 0
-  ✓ nhatrang  jsonb ↔ req_business                                       vi phạm = 0
-  ✓ nhatrang  jsonb ↔ req_family                                         vi phạm = 0
-  ✓ nhatrang  jsonb children_ages ↔ req_family_child                     vi phạm = 0
-  ✓ phuquoc   vị từ mảnh hotel                                           vi phạm = 0
-  ✓ phuquoc   dẫn xuất room ⋉ hotel                                      vi phạm = 0
-  ✓ phuquoc   dẫn xuất booking ⋉ room                                    vi phạm = 0
-  ✓ phuquoc   dẫn xuất req_tour ⋉ booking                                vi phạm = 0
-  ✓ phuquoc   dẫn xuất req_business ⋉ booking                            vi phạm = 0
-  ✓ phuquoc   dẫn xuất req_family ⋉ booking                              vi phạm = 0
-  ✓ phuquoc   dẫn xuất req_family_child ⋉ req_family                     vi phạm = 0
-  ✓ phuquoc   dải khoá dòng mới (đuôi = site_no)                         vi phạm = 0
-  ✓ phuquoc   CHECK mảnh + CHECK jsonb còn hiệu lực                      vi phạm = 0
-  ✓ phuquoc   jsonb ↔ req_tour                                           vi phạm = 0
-  ✓ phuquoc   jsonb ↔ req_business                                       vi phạm = 0
-  ✓ phuquoc   jsonb ↔ req_family                                         vi phạm = 0
-  ✓ phuquoc   jsonb children_ages ↔ req_family_child                     vi phạm = 0
-  ✓ danang    vị từ mảnh hotel                                           vi phạm = 0
-  ✓ danang    dẫn xuất room ⋉ hotel                                      vi phạm = 0
-  ✓ danang    dẫn xuất booking ⋉ room                                    vi phạm = 0
-  ✓ danang    dẫn xuất req_tour ⋉ booking                                vi phạm = 0
-  ✓ danang    dẫn xuất req_business ⋉ booking                            vi phạm = 0
-  ✓ danang    dẫn xuất req_family ⋉ booking                              vi phạm = 0
-  ✓ danang    dẫn xuất req_family_child ⋉ req_family                     vi phạm = 0
-  ✓ danang    dải khoá dòng mới (đuôi = site_no)                         vi phạm = 0
-  ✓ danang    CHECK mảnh + CHECK jsonb còn hiệu lực                      vi phạm = 0
-  ✓ danang    jsonb ↔ req_tour                                           vi phạm = 0
-  ✓ danang    jsonb ↔ req_business                                       vi phạm = 0
-  ✓ danang    jsonb ↔ req_family                                         vi phạm = 0
-  ✓ danang    jsonb children_ages ↔ req_family_child                     vi phạm = 0
-B. toàn hệ
-  ✓ toàn hệ   đầy đủ: |all_hotel| = |đối chứng|                          vi phạm = 0
-  ✓ toàn hệ   tái tạo: all_hotel = đối chứng                             vi phạm = 0
-  ✓ toàn hệ   rời nhau: khoá (hotel_id) không trùng giữa các trạm        vi phạm = 0
-  ✓ toàn hệ   đầy đủ: |all_room| = |đối chứng|                           vi phạm = 0
-  ✓ toàn hệ   tái tạo: all_room = đối chứng                              vi phạm = 0
-  ✓ toàn hệ   rời nhau: khoá (room_id) không trùng giữa các trạm         vi phạm = 0
-  ✓ toàn hệ   đầy đủ: |all_booking| = |đối chứng|                        vi phạm = 0
-  ✓ toàn hệ   tái tạo: all_booking = đối chứng                           vi phạm = 0
-  ✓ toàn hệ   rời nhau: khoá (booking_id) không trùng giữa các trạm      vi phạm = 0
-  ✓ toàn hệ   đầy đủ: |all_req_tour| = |đối chứng|                       vi phạm = 0
-  ✓ toàn hệ   tái tạo: all_req_tour = đối chứng                          vi phạm = 0
-  ✓ toàn hệ   rời nhau: khoá (booking_id) không trùng giữa các trạm      vi phạm = 0
-  ✓ toàn hệ   đầy đủ: |all_req_business| = |đối chứng|                   vi phạm = 0
-  ✓ toàn hệ   tái tạo: all_req_business = đối chứng                      vi phạm = 0
-  ✓ toàn hệ   rời nhau: khoá (booking_id) không trùng giữa các trạm      vi phạm = 0
-  ✓ toàn hệ   đầy đủ: |all_req_family| = |đối chứng|                     vi phạm = 0
-  ✓ toàn hệ   tái tạo: all_req_family = đối chứng                        vi phạm = 0
-  ✓ toàn hệ   rời nhau: khoá (booking_id) không trùng giữa các trạm      vi phạm = 0
-  ✓ toàn hệ   đầy đủ: |all_req_family_child| = |đối chứng|               vi phạm = 0
-  ✓ toàn hệ   tái tạo: all_req_family_child = đối chứng                  vi phạm = 0
-  ✓ toàn hệ   rời nhau: khoá (booking_id, seq) không trùng giữa các trạm vi phạm = 0
-  ✓ toàn hệ   sao chép: room_type ở dalat = ở nhatrang                   vi phạm = 0
-  ✓ toàn hệ   sao chép: room_type ở phuquoc = ở nhatrang                 vi phạm = 0
-  ✓ toàn hệ   sao chép: room_type ở danang = ở nhatrang                  vi phạm = 0
-  ✓ toàn hệ   sao chép: room_type = đối chứng                            vi phạm = 0
-  ✓ toàn hệ   sao chép: tour_group ở dalat = ở nhatrang                  vi phạm = 0
-  ✓ toàn hệ   sao chép: tour_group ở phuquoc = ở nhatrang                vi phạm = 0
-  ✓ toàn hệ   sao chép: tour_group ở danang = ở nhatrang                 vi phạm = 0
-  ✓ toàn hệ   sao chép: tour_group = đối chứng                           vi phạm = 0
-  ✓ toàn hệ   khoá ngoại toàn hệ room.hotel_id → hotel                   vi phạm = 0
-  ✓ toàn hệ   khoá ngoại toàn hệ room.room_type_code → room_type         vi phạm = 0
-  ✓ toàn hệ   khoá ngoại toàn hệ booking.room_id → room                  vi phạm = 0
-  ✓ toàn hệ   khoá ngoại toàn hệ booking.tour_group_id → tour_group      vi phạm = 0
-  ✓ toàn hệ   khoá ngoại toàn hệ req_tour.booking_id → booking           vi phạm = 0
-  ✓ toàn hệ   khoá ngoại toàn hệ req_business.booking_id → booking       vi phạm = 0
-  ✓ toàn hệ   khoá ngoại toàn hệ req_family.booking_id → booking         vi phạm = 0
-  ✓ toàn hệ   khoá ngoại toàn hệ req_family_child.booking_id → req_family vi phạm = 0
-KẾT QUẢ: ĐẠT (10.0 s)
+  [OK  ] hotel             đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] hotel             tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] hotel             tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] hotel             rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] room              đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] room              tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] room              tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] room              rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] booking           đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] booking           tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] booking           tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] booking           rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] req_tour          đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] req_tour          tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] req_tour          tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] req_tour          rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] req_business      đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] req_business      tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] req_business      tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] req_business      rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] req_family        đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] req_family        tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] req_family        tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] req_family        rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] req_family_child  đầy đủ      : dòng của ref không có ở trạm nào  (= 0)
+  [OK  ] req_family_child  tái tạo     : ref EXCEPT ALL (∪ mảnh)  (= 0)
+  [OK  ] req_family_child  tái tạo     : (∪ mảnh) EXCEPT ALL ref  (= 0)
+  [OK  ] req_family_child  rời nhau    : khoá nằm ở ≥ 2 trạm  (= 0)
+  [OK  ] room_type         @ nhatrang : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] room_type         @ dalat    : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] room_type         @ phuquoc  : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] room_type         @ danang   : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] tour_group        @ nhatrang : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] tour_group        @ dalat    : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] tour_group        @ phuquoc  : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] tour_group        @ danang   : bản sao ≠ ref (hai chiều)  (= 0)
+  [OK  ] dalat     hotel.region ≠ vùng của trạm  (= 0)
+  [OK  ] dalat     room mồ côi (hotel không ở trạm)  (= 0)
+  [OK  ] dalat     booking mồ côi (room không ở trạm)  (= 0)
+  [OK  ] dalat     req_* mồ côi (booking không ở trạm)  (= 0)
+  [OK  ] dalat     req_family_child mồ côi  (= 0)
+  [OK  ] dalat     booking_id mới ngoài dải của trạm  (= 0)
+  [OK  ] dalat     CHECK/FK khai báo nhưng chưa VALID  (= 0)
+  [OK  ] nhatrang  hotel.region ≠ vùng của trạm  (= 0)
+  [OK  ] nhatrang  room mồ côi (hotel không ở trạm)  (= 0)
+  [OK  ] nhatrang  booking mồ côi (room không ở trạm)  (= 0)
+  [OK  ] nhatrang  req_* mồ côi (booking không ở trạm)  (= 0)
+  [OK  ] nhatrang  req_family_child mồ côi  (= 0)
+  [OK  ] nhatrang  booking_id mới ngoài dải của trạm  (= 0)
+  [OK  ] nhatrang  CHECK/FK khai báo nhưng chưa VALID  (= 0)
+  [OK  ] phuquoc   hotel.region ≠ vùng của trạm  (= 0)
+  [OK  ] phuquoc   room mồ côi (hotel không ở trạm)  (= 0)
+  [OK  ] phuquoc   booking mồ côi (room không ở trạm)  (= 0)
+  [OK  ] phuquoc   req_* mồ côi (booking không ở trạm)  (= 0)
+  [OK  ] phuquoc   req_family_child mồ côi  (= 0)
+  [OK  ] phuquoc   booking_id mới ngoài dải của trạm  (= 0)
+  [OK  ] phuquoc   CHECK/FK khai báo nhưng chưa VALID  (= 0)
+  [OK  ] danang    hotel.region ≠ vùng của trạm  (= 0)
+  [OK  ] danang    room mồ côi (hotel không ở trạm)  (= 0)
+  [OK  ] danang    booking mồ côi (room không ở trạm)  (= 0)
+  [OK  ] danang    req_* mồ côi (booking không ở trạm)  (= 0)
+  [OK  ] danang    req_family_child mồ côi  (= 0)
+  [OK  ] danang    booking_id mới ngoài dải của trạm  (= 0)
+  [OK  ] danang    CHECK/FK khai báo nhưng chưa VALID  (= 0)
+  [OK  ] room.hotel_id → hotel  (= 0)
+  [OK  ] room.room_type_code → room_type  (= 0)
+  [OK  ] booking.room_id → room  (= 0)
+  [OK  ] booking.tour_group_id → tour_group  (= 0)
+  [OK  ] req_tour → booking(tour)  (= 0)
+  [OK  ] req_business → booking(business)  (= 0)
+  [OK  ] req_family → booking(family)  (= 0)
+  [OK  ] req_family_child → req_family  (= 0)
+  [OK  ] PK toàn hệ: room_type, tour_group trùng  (= 0)
+  [OK  ] dalat     tour      jsonb ⇄ quan hệ  (= 0)
+  [OK  ] dalat     business  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] dalat     family    jsonb ⇄ quan hệ  (= 0)
+  [OK  ] dalat     children  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] nhatrang  tour      jsonb ⇄ quan hệ  (= 0)
+  [OK  ] nhatrang  business  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] nhatrang  family    jsonb ⇄ quan hệ  (= 0)
+  [OK  ] nhatrang  children  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] phuquoc   tour      jsonb ⇄ quan hệ  (= 0)
+  [OK  ] phuquoc   business  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] phuquoc   family    jsonb ⇄ quan hệ  (= 0)
+  [OK  ] phuquoc   children  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] danang    tour      jsonb ⇄ quan hệ  (= 0)
+  [OK  ] danang    business  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] danang    family    jsonb ⇄ quan hệ  (= 0)
+  [OK  ] danang    children  jsonb ⇄ quan hệ  (= 0)
+  [OK  ] room_type         số dòng gốc  (15 / summary.json 15)
+  [OK  ] hotel             số dòng gốc  (60 / summary.json 60)
+  [OK  ] room              số dòng gốc  (6000 / summary.json 6000)
+  [OK  ] tour_group        số dòng gốc  (800 / summary.json 800)
+  [OK  ] booking           số dòng gốc  (80000 / summary.json 80000)
+  [OK  ] req_tour          số dòng gốc  (36124 / summary.json 36124)
+  [OK  ] req_business      số dòng gốc  (27933 / summary.json 27933)
+  [OK  ] req_family        số dòng gốc  (15943 / summary.json 15943)
+  [OK  ] req_family_child  số dòng gốc  (23956 / summary.json 23956)
+  [OK  ] hotel @ dalat      (13 / summary.json 13)
+  [OK  ] hotel @ nhatrang   (16 / summary.json 16)
+  [OK  ] hotel @ phuquoc    (14 / summary.json 14)
+  [OK  ] hotel @ danang     (17 / summary.json 17)
+  [OK  ] dòng liên vùng (đoàn ≥ 2 vùng)  (5144 / summary.json 5144)
+
+KẾT LUẬN: ĐẠT · 7.1s

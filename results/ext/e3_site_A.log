@@ -1,0 +1,11 @@
+{"ts": "2026-11-17T22:23:13", "machine": "A", "action": "csr", "node": "dalat", "cn": "dalat.db.nhom8.internal", "new_key": true, "csr_sha256": "d7afdd5fd8307137"}
+{"ts": "2026-11-17T22:23:13", "machine": "A", "action": "csr", "node": "nhatrang", "cn": "fdw_reader", "new_key": true, "csr_sha256": "407fd2a009866e14"}
+{"ts": "2026-11-17T22:23:33", "machine": "A", "action": "install", "node": "dalat", "kind": "server", "backup": "20261117-222333", "not_after": "Feb 15 15:23:15 2027 GMT", "sha256": "F5:53:5D:75:7B:94:35:02:CC:B0:1C:66:89:74:39:6A:37:67:A5:15:AC:D5:DD:59:8E:BB:53:F7:6A:9A:2A:72"}
+{"ts": "2026-11-17T22:23:33", "machine": "A", "action": "install", "node": "nhatrang", "kind": "client", "not_after": "Feb 15 15:23:16 2027 GMT", "sha256": "D8:89:96:61:B0:41:CD:60:BE:18:10:30:6F:00:DA:54:06:06:4C:7E:42:FE:E1:47:75:87:C6:EF:DF:86:47:ED"}
+{"ts": "2026-11-17T22:24:17", "machine": "A", "action": "csr", "node": "dalat", "cn": "dalat.db.nhom8.internal", "new_key": true, "csr_sha256": "c14406c523a9ece2"}
+{"ts": "2026-11-17T22:24:17", "machine": "A", "action": "install-rejected", "node": "dalat", "error": "chứng chỉ KHÔNG khớp khoá riêng đang chờ (ký nhầm CSR cũ?)"}
+{"ts": "2026-11-17T22:24:18", "machine": "A", "action": "install-rolled-back", "node": "dalat", "error": "lỗi giả lập (E3_FAULT=after-reload)", "backup": "20261117-222418"}
+{"ts": "2026-11-17T22:24:36", "machine": "A", "action": "csr", "node": "dalat", "cn": "dalat.db.nhom8.internal", "new_key": true, "csr_sha256": "cef9e5b9561acd58"}
+{"ts": "2026-11-17T22:24:38", "machine": "A", "action": "install-rolled-back", "node": "dalat", "error": "lỗi giả lập (E3_FAULT=after-reload)", "backup": "20261117-222437"}
+{"ts": "2026-11-17T22:24:38", "machine": "A", "action": "install", "node": "dalat", "kind": "server", "backup": "20261117-222438", "not_after": "Feb 15 15:24:37 2027 GMT", "sha256": "EF:B8:0F:96:64:D0:3F:DA:92:14:E4:DF:4F:A7:47:44:06:6F:EE:3E:CA:3A:36:C6:BE:BE:04:ED:E3:1B:C2:8C"}
+{"ts": "2026-11-17T22:25:01", "machine": "A", "action": "uninstall", "node": "dalat"}

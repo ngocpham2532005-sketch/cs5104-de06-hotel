@@ -1,0 +1,75 @@
+E3 — chế độ PRD, chạy trên hai máy thật, 2026-11-17 (A = macOS 192.168.100.218, B = Windows 11 192.168.100.198)
+Trích nguyên văn output. Nhật ký máy: e3_site_A.log, e3_site_B.log. Nhật ký cấp phát của CA: build/e3/issued.jsonl (máy A, không vào git).
+
+== 0. Cập nhật mã nguồn sang máy B ==
+A$ make sync-remote SSH=<user>@192.168.100.198 DEST=C:/cs5104/de06_hotel_ddb KEY=<khoá>
+  gói 109 tệp (2070 KB)
+  máy đích: ext_secure_site 190174d939a2
+  máy này : ext_secure_site 190174d939a2
+Đã cập nhật, mã băm khớp.
+
+== 1. CA (máy A) ==
+A$ make ext-secure-ca-init
+  CA nội bộ đã có — dùng lại
+  sha256 Fingerprint=68:E3:3F:5D:63:05:20:23:60:0A:B5:03:B0:EB:E7:0B:F5:39:55:6C:21:97:9A:98:D9:00:80:5D:60:20:A9:E6
+
+== 2. Khoá + CSR, sinh TẠI máy chứa trạm ==
+B> runB.ps1 ext-secure-site-csr
+E3 (PRD) · csr · máy B · phuquoc, danang
+  phuquoc   CN=phuquoc.db.nhom8.internal  khoá MỚI — nằm trong container, không xuất ra
+            -> build\e3\exchange\phuquoc.csr   sha256 a8c4cbc7528d32d6…  (đối chiếu với máy A khi ký)
+  danang    CN=danang.db.nhom8.internal  khoá MỚI — nằm trong container, không xuất ra
+            -> build\e3\exchange\danang.csr   sha256 9523b9fa013fb489…  (đối chiếu với máy A khi ký)
+A$ make ext-secure-site-csr ; make ext-secure-site-csr CLIENT=1
+  dalat     CN=dalat.db.nhom8.internal  khoá MỚI — nằm trong container, không xuất ra
+  nhatrang  CN=fdw_reader  khoá MỚI — nằm trong container, không xuất ra
+
+== 3. Ký (máy A, container dùng một lần --network none) — mã băm CSR khớp với máy B ==
+A$ make ext-secure-sign
+  ký dalat.csr          sha256 CSR d7afdd5fd8307137…  CN=dalat.db.nhom8.internal (server) · 90 ngày · tới Feb 15 15:23:15 2027 GMT
+  ký danang.csr         sha256 CSR 9523b9fa013fb489…  CN=danang.db.nhom8.internal (server) · 90 ngày · tới Feb 15 15:23:15 2027 GMT
+  ký fdw_reader.csr     sha256 CSR 407fd2a009866e14…  CN=fdw_reader (client) · 90 ngày · tới Feb 15 15:23:16 2027 GMT
+  ký phuquoc.csr        sha256 CSR a8c4cbc7528d32d6…  CN=phuquoc.db.nhom8.internal (server) · 90 ngày · tới Feb 15 15:23:17 2027 GMT
+
+== 4. Cài TẠI máy chứa trạm ==
+B> runB.ps1 ext-secure-site-install
+  phuquoc   kiểm tra trước khi cài: chuỗi CA ✓  khớp khoá ✓  CN/SAN ✓  EKU ✓  hạn tới Feb 15 15:23:17 2027 GMT
+  phuquoc   TLS 1.3 bật, đang phục vụ đúng chứng chỉ mới (sha256 DE:92:39:B8:25:C8:7A:FF…); fdw_reader chỉ SELECT; pg_hba: chỉ TLS + cert.
+  danang    kiểm tra trước khi cài: chuỗi CA ✓  khớp khoá ✓  CN/SAN ✓  EKU ✓  hạn tới Feb 15 15:23:15 2027 GMT
+  danang    TLS 1.3 bật, đang phục vụ đúng chứng chỉ mới (sha256 05:09:35:51:F9:52:0C:69…); fdw_reader chỉ SELECT; pg_hba: chỉ TLS + cert.
+A$ make ext-secure-site-install ; make ext-secure-site-install CLIENT=1
+  dalat     TLS 1.3 bật, đang phục vụ đúng chứng chỉ mới (sha256 F5:53:5D:75:7B:94:35:02…)
+  nhatrang  chứng chỉ máy khách fdw_reader đã cài
+
+== 5. Nối fdw + kiểm tra (máy A) ==
+A$ make ext-secure-link
+  srv_dalat -> dalat.db.nhom8.internal (verify-full, direct TLS, fdw_reader + cert): 13 khách sạn ✓
+  srv_phuquoc -> phuquoc.db.nhom8.internal (verify-full, direct TLS, fdw_reader + cert): 14 khách sạn ✓
+  srv_danang -> danang.db.nhom8.internal (verify-full, direct TLS, fdw_reader + cert): 17 khách sạn ✓
+A$ make ext-secure-test      -> KẾT QUẢ: 7/7 ĐẠT  (T1–T7 như e3_run.txt; chứng chỉ thử 1 ngày do CA cấp riêng)
+A$ make check                -> KẾT LUẬN: ĐẠT
+A$ make q                    -> Q1–Q5: 13 / 60 / 46 / 3413 / 3413 dòng, đều giống CSDL đối chứng
+A$ make ext-secure-status    -> phiên fdw tại dalat, phuquoc, danang: user=fdw_reader ssl=True TLSv1.3 TLS_AES_256_GCM_SHA384
+B> runB.ps1 ext-secure-site-status
+  phuquoc   ssl=on role fdw_reader=có pg_hba E3=có · CN=phuquoc.db.nhom8.internal · hết hạn Feb 15 15:23:17 2027 GMT (còn 89 ngày)
+  danang    ssl=on role fdw_reader=có pg_hba E3=có · CN=danang.db.nhom8.internal · hết hạn Feb 15 15:23:15 2027 GMT (còn 89 ngày)
+
+== 6. Phép thử âm cho CHÍNH quy trình ==
+N1 CSR có CN ngoài chính sách (CN=postgres)
+   LỖI: evil.csr: TỪ CHỐI ký — CN 'postgres' không thuộc chính sách (dalat.db.nhom8.internal, phuquoc.db.nhom8.internal, danang.db.nhom8.internal, fdw_reader)
+N2 CSR bị sửa một ký tự
+   LỖI: tampered.csr: chữ ký CSR không hợp lệ (tệp hỏng hoặc bị sửa)
+N3 đổi khoá (csr --rotate) nhưng cài lại chứng chỉ CŨ
+   LỖI: dalat: TỪ CHỐI cài — chứng chỉ KHÔNG khớp khoá riêng đang chờ (ký nhầm CSR cũ?)
+   dalat vẫn phục vụ F5:53:5D:75:7B:94:35:02 (không đổi)
+N4 lỗi sau reload (E3_FAULT=after-reload)
+   LỖI: dalat: LỖI sau khi cài — đã HOÀN TÁC về bản sao lưu 20261117-222437: lỗi giả lập (E3_FAULT=after-reload)
+   dalat sau hoàn tác: F5:53:5D:75:7B:94:35:02; fdw tới dalat: 13 khách sạn; khoá/chứng chỉ chờ vẫn còn trong pending/
+N5 cài lại (không lỗi) = đổi khoá khi hệ đang chạy
+   dalat TLS 1.3 bật, đang phục vụ đúng chứng chỉ mới (sha256 EF:B8:0F:96:64:D0:3F:DA…); fdw tới dalat: 13 khách sạn
+N6 máy B gỡ TLS (runB.ps1 ext-secure-site-uninstall) trong khi srv_* vẫn đòi verify-full
+   Q2 ở trạm trung tâm báo lỗi — không lặng lẽ quay về kết nối không mã hoá (fail-closed)
+
+== 7. Trả về trạng thái demo D1–D8 ==
+B> runB.ps1 ext-secure-site-uninstall ; A$ make ext-secure-site-uninstall ; make ext-secure-down
+A$ make check -> KẾT LUẬN: ĐẠT ; Q2, Q3 khớp đối chứng ; bản sao lưu e3/backup/ ở mỗi trạm được giữ lại

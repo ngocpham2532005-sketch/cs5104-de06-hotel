@@ -27,7 +27,9 @@ GEN := datagen/de06_hotel/generate.py
         venv build status stop-site start-site apps-start apps-stop help \
         ext-help ext-replica ext-replica-status ext-failover ext-failback ext-watch ext-replica-down \
         ext-2pc-crash ext-2pc-status ext-2pc-recover ext-bench \
-        ext-secure ext-secure-status ext-secure-test ext-secure-bench ext-secure-down
+        ext-secure ext-secure-status ext-secure-test ext-secure-bench ext-secure-down \
+        ext-secure-ca-init ext-secure-sign ext-secure-link \
+        ext-secure-site-csr ext-secure-site-install ext-secure-site-status ext-secure-site-uninstall sync-remote
 
 help:
 	@echo "make all [MACHINE=A|B] | up | data | load | link | check | bench | slope | delay-on | delay-off | entry | dash | down"
@@ -121,6 +123,8 @@ ext-help:
 	@echo "E1 · make ext-replica | ext-replica-status | ext-failover | ext-failback | ext-watch | ext-replica-down  [RSITE=phuquoc]"
 	@echo "E2 · make ext-2pc-crash CRASH=prepare|decision|mid-commit | ext-2pc-status | ext-2pc-recover [FORCE=1]"
 	@echo "E3 · make ext-secure | ext-secure-status | ext-secure-test | ext-secure-bench | ext-secure-down"
+	@echo "E3 PRD · mỗi máy: ext-secure-site-csr | ext-secure-site-install | ext-secure-site-status | ext-secure-site-uninstall [SITES='..'] [CLIENT=1] [ROTATE=1]"
+	@echo "         máy A : ext-secure-ca-init | ext-secure-sign [CSR='..'] | ext-secure-link   ·  cập nhật máy khác: make sync-remote SSH=user@host DEST=..."
 	@echo "So sánh phương án E1/E2: make ext-bench  (-> results/ext/ext_bench.csv)"
 	@echo "Xem docs/NANG_CAO.md"
 
@@ -169,3 +173,36 @@ ext-secure-bench:        ## E3: chi phí TLS ở trễ 0 / 30 ms (-> results/ext
 
 ext-secure-down:
 	$(VPY) tools/ext_secure.py down
+
+# ---- E3 chế độ PRD: khoá riêng không rời trạm. Các lệnh ext-secure-site-* chạy TẠI máy chứa trạm (chỉ cần python, không venv)
+SITES ?=
+SITE_FLAGS = $(if $(CLIENT),--client,) $(if $(ROTATE),--rotate,)
+
+ext-secure-site-csr:     ## mỗi máy: sinh khoá trong container + CSR -> build/e3/exchange/
+	$(PY) tools/ext_secure_site.py csr $(SITES) $(SITE_FLAGS)
+
+ext-secure-site-install: ## mỗi máy: kiểm tra + cài chứng chỉ đã ký, bật TLS, có sao lưu và hoàn tác
+	$(PY) tools/ext_secure_site.py install $(SITES) $(SITE_FLAGS)
+
+ext-secure-site-status:
+	$(PY) tools/ext_secure_site.py status $(SITES)
+
+ext-secure-site-uninstall:
+	$(PY) tools/ext_secure_site.py uninstall $(SITES)
+
+ext-secure-ca-init:      ## máy A: CA nội bộ (một lần)
+	$(PY) tools/ext_secure.py ca-init
+
+ext-secure-sign:         ## máy A: ký CSR theo chính sách, trong container không mạng
+	$(PY) tools/ext_secure.py sign $(CSR)
+
+ext-secure-link:         ## máy A: srv_* dùng TLS verify-full + chứng chỉ máy khách đã cài
+	$(VPY) tools/ext_secure.py link
+
+# ---- cập nhật mã nguồn sang máy khác (vd. máy B) qua SSH, rồi so mã băm script ở hai đầu
+SSH  ?=
+DEST ?=
+KEY  ?=
+RPY  ?= python
+sync-remote:
+	$(PY) tools/sync_remote.py $(SSH) $(DEST) $(if $(KEY),--key $(KEY),) --python $(RPY)

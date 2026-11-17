@@ -1016,5 +1016,14 @@ make ext-2pc-recover && make check    # commit nốt theo nhật ký; vẫn Đ�
 69. **Còn thiếu gì để thật sự production?** Mật khẩu `postgres` vẫn trong `deploy.toml` (nên dùng secret manager); các tool quản trị chưa
     bắt buộc TLS; CA nên để ngoại tuyến, chứng chỉ ngắn hạn tự gia hạn và có thu hồi; DNS thật thay cho `/etc/hosts`.
 
+70. **Chế độ lab và chế độ PRD của E3 khác nhau thế nào?** Lab: máy A sinh mọi khoá rồi đẩy sang trạm bằng superuser qua mạng. PRD: khoá sinh trong
+    container của chính trạm và không bao giờ ra ngoài; máy B chỉ gửi CSR (công khai) và nhận chứng chỉ (công khai); máy A không cần quyền gì trên máy B.
+71. **CA ký thế nào cho an toàn?** Trong container dùng một lần, `--network none`, chỉ gắn `build/e3/`. CA kiểm chữ ký CSR và áp chính sách
+    (chỉ CN của 3 trạm xa hoặc `fdw_reader`), tự đặt SAN/EKU, cấp hạn 90 ngày, serial ngẫu nhiên, ghi `issued.jsonl`. CSR xin `CN=postgres` bị từ chối (N1).
+72. **Cài lỗi giữa chừng thì sao?** Trước khi cài đã sao lưu `pg_hba.conf`, `postgresql.auto.conf` và chứng chỉ cũ. Sau reload, script kiểm tra lại:
+    `pg_hba` không có dòng lỗi, TLS 1.3 thật, máy chủ phục vụ đúng vân tay chứng chỉ mới. Sai một điểm là tự hoàn tác (N4) và giữ khoá chờ để cài lại.
+73. **Gia hạn chứng chỉ có phải dừng hệ không?** Không. `csr ROTATE=1` → `sign` → `install`, reload cấu hình, kết nối mới dùng chứng chỉ mới (N5).
+    Nếu máy B gỡ TLS mà trạm trung tâm vẫn đòi `verify-full` thì truy vấn báo lỗi chứ không tự hạ xuống không mã hoá (N6, fail-closed).
+
 **Giới hạn còn lại (nói trước khi bị hỏi):** chỉ `phuquoc` có bản sao; bản sao ở máy A nên máy A chết thì vẫn hết (trung tâm là điểm lỗi đơn lẻ);
 recover chạy khi được gọi, không phải tiến trình nền; trường hợp một trạm chết đúng lúc pha 2 đã có mã xử lý nhưng chưa được thử riêng.

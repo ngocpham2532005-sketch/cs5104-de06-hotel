@@ -1,0 +1,6 @@
+{"ts": "2026-11-17T22:23:05", "machine": "B", "action": "csr", "node": "phuquoc", "cn": "phuquoc.db.nhom8.internal", "new_key": true, "csr_sha256": "a8c4cbc7528d32d6"}
+{"ts": "2026-11-17T22:23:06", "machine": "B", "action": "csr", "node": "danang", "cn": "danang.db.nhom8.internal", "new_key": true, "csr_sha256": "9523b9fa013fb489"}
+{"ts": "2026-11-17T22:23:29", "machine": "B", "action": "install", "node": "phuquoc", "kind": "server", "backup": "20261117-222327", "not_after": "Feb 15 15:23:17 2027 GMT", "sha256": "DE:92:39:B8:25:C8:7A:FF:33:87:EB:32:4F:D7:D5:5E:3E:77:99:67:E6:B6:1B:A8:FC:BE:59:27:D4:15:F0:99"}
+{"ts": "2026-11-17T22:23:32", "machine": "B", "action": "install", "node": "danang", "kind": "server", "backup": "20261117-222330", "not_after": "Feb 15 15:23:15 2027 GMT", "sha256": "05:09:35:51:F9:52:0C:69:7F:C1:26:C1:5B:93:E9:0F:4E:30:31:FF:D3:FD:32:01:46:11:EE:A7:CB:6A:38:AC"}
+{"ts": "2026-11-17T22:24:59", "machine": "B", "action": "uninstall", "node": "phuquoc"}
+{"ts": "2026-11-17T22:25:01", "machine": "B", "action": "uninstall", "node": "danang"}

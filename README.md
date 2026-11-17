@@ -30,8 +30,20 @@ Tài liệu: [IMPLEMENT.md](IMPLEMENT.md) (thiết kế và cách cài đặt ch
 
 ## 1. Chuẩn bị (làm một lần)
 
-**Cả hai máy:** Docker Desktop (đang chạy), Python ≥ 3.11, GNU make, git. Hai máy cùng một mạng LAN
-(hoặc cùng điểm phát Wi-Fi của điện thoại — phương án dự phòng).
+**Cả hai máy:** Docker Desktop (đang chạy), Python ≥ 3.11, GNU make, git.
+
+**Mạng giữa hai máy** — máy A phải mở được kết nối TCP tới cổng 5435, 5436 của máy B:
+
+| Hai máy ở đâu | Cách nối | Dùng cho |
+|---|---|---|
+| Cùng một mạng LAN hoặc Wi-Fi (kể cả hai băng 2.4/5 GHz của **cùng một router**) | không cần gì thêm | **demo D1–D8 và số đo trong báo cáo** (cách đề yêu cầu) |
+| Cùng điểm phát Wi-Fi của điện thoại | không cần gì thêm | phương án dự phòng khi demo |
+| Hai nơi khác nhau (hai router, hai Wi-Fi khác mạng) | VPN: WireGuard site-to-site, hoặc Tailscale/Headscale; ghi **IP VPN** của mỗi máy vào `deploy.toml` | phát triển, chạy thử từ xa; nên bật thêm **E3** (TLS + chứng chỉ, mục 4) |
+
+Lưu ý khi hai máy ở hai nơi:
+- Trễ thật của Internet (thường 10–50 ms) cộng thêm vào 30 ms giả lập, nên số đo **không so được** với Bảng 3 của báo cáo. Số liệu nộp bài đo trên cùng một LAN.
+- **Không** mở cổng router để đưa PostgreSQL ra Internet: mật khẩu mặc định nằm trong repo.
+- Mạng Wi-Fi "Guest" thường chặn các máy nói chuyện với nhau. Windows phải đặt mạng là **Private**, nếu không tường lửa sẽ chặn.
 
 **Máy A — macOS**
 ```bash
@@ -51,7 +63,8 @@ New-NetFirewallRule -DisplayName "CS5104 PostgreSQL" -Direction Inbound -Protoco
 ```
 
 **Sửa `deploy.toml` (giống nhau trên cả hai máy):** `machines.A.ip`, `machines.B.ip` = IP LAN thật
-(macOS: `ipconfig getifaddr en0`; Windows: `ipconfig`).
+(macOS: `ipconfig getifaddr en0` hoặc `en1`; Windows: `ipconfig`), hoặc IP VPN nếu hai máy ở hai nơi.
+IP đổi (đổi Wi-Fi, khởi động lại router): sửa lại hai dòng này rồi chạy `make link` ở máy A, máy B không phải làm gì.
 
 ## 2. Dựng hệ — `make all`
 

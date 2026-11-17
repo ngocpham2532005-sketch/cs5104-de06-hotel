@@ -854,7 +854,7 @@ Mỗi thành viên tự đánh dấu. Ô nào chưa chắc thì đọc lại m�
 
 ---
 
-## 14. Phần mở rộng E1, E2 — ngoài yêu cầu đề
+## 14. Phần mở rộng E1, E2, E3 — ngoài yêu cầu đề
 
 > **Đề không yêu cầu phần này.** Nhóm làm thêm để khắc phục hai giới hạn ở Mục 8 (#1 và #5). Phần này không nằm trong `make all`,
 > không thêm bảng hay cột, không đổi D1–D8 hay N1–N5. Tài liệu gốc: [NANG_CAO.md](NANG_CAO.md); báo cáo §5.6.
@@ -1002,6 +1002,19 @@ make ext-2pc-recover && make check    # commit nốt theo nhật ký; vẫn Đ�
 64. **Không chạy được `tc` thì đo trễ bằng cách nào?** `DELAY_MODE=proxy make delay-on` dùng proxy TCP giữ mỗi gói chiều về 30 ms
     (`tools/latency_proxy.py`). Kết quả gần như `tc` (Q2 430 so với 436 ms) vì mỗi vòng khứ hồi vẫn chậm thêm đúng 30 ms. Khác biệt:
     proxy chạy ở máy chủ (thêm một chặng container → host), và chỉ áp cho kết nối postgres_fdw chứ không phải mọi gói.
+
+65. **E3 làm gì, khác VPN thế nào?** VPN (WireGuard, Tailscale) lo phần *đi tới được* và mã hoá đường hầm. E3 lo phần *tin ai* ở chính lớp CSDL:
+    trạm xa chỉ nhận `fdw_reader` khi kết nối có TLS và chứng chỉ máy khách do CA của nhóm ký; trạm trung tâm chỉ nói chuyện với
+    máy có chứng chỉ đúng tên (`verify-full`). Lộ VPN hay giả IP vẫn không vào được (T3–T6).
+66. **Vì sao gọi bằng IP lại bị từ chối (T4)?** Chứng chỉ máy chủ chỉ có SAN là tên `phuquoc.db.nhom8.internal`. `verify-full` so tên
+    đã gọi với SAN, nên gọi bằng IP thì không khớp. Nhờ vậy kẻ chiếm được IP mà không có khoá riêng của trạm sẽ không giả làm trạm được.
+67. **TLS làm chậm truy vấn bao nhiêu?** Gần như không: khi kết nối đã mở, Q2 428–458 ms ở cả ba chế độ (dao động Wi-Fi). TLS chỉ tốn lúc mở kết nối,
+    và mở bằng TLS + `cert` còn nhanh hơn không mã hoá + SCRAM (382 so với 469 ms ở trễ 30 ms), vì bỏ được 2 vòng SASL.
+    `sslnegotiation=direct` bỏ thêm vòng `SSLRequest` (340 ms).
+68. **Vì sao `fdw_reader` chỉ có SELECT?** Mọi thứ đi qua fdw (Q1–Q5, `make check`) đều chỉ đọc; ghi đi thẳng tới trạm. Lộ khoá của trạm
+    trung tâm thì kẻ tấn công cũng chỉ đọc được, không sửa hay xoá được mảnh (T7).
+69. **Còn thiếu gì để thật sự production?** Mật khẩu `postgres` vẫn trong `deploy.toml` (nên dùng secret manager); các tool quản trị chưa
+    bắt buộc TLS; CA nên để ngoại tuyến, chứng chỉ ngắn hạn tự gia hạn và có thu hồi; DNS thật thay cho `/etc/hosts`.
 
 **Giới hạn còn lại (nói trước khi bị hỏi):** chỉ `phuquoc` có bản sao; bản sao ở máy A nên máy A chết thì vẫn hết (trung tâm là điểm lỗi đơn lẻ);
 recover chạy khi được gọi, không phải tiến trình nền; trường hợp một trạm chết đúng lúc pha 2 đã có mã xử lý nhưng chưa được thử riêng.

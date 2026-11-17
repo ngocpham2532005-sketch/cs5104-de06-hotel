@@ -52,3 +52,7 @@ port = 5440
 [ext.replica.phuquoc]
 machine = "A"
 port = 5445
+
+# E3: đường postgres_fdw có TLS verify-full + chứng chỉ máy khách, tên DNS nội bộ, role chỉ đọc (make ext-secure)
+[ext.secure]
+domain = "db.nhom8.internal"     # tên trạm: <trạm>.db.nhom8.internal (SAN trong chứng chỉ máy chủ)

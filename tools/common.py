@@ -53,6 +53,7 @@ class Config:
         # PHẦN MỞ RỘNG (ngoài yêu cầu đề): bản sao dự phòng [ext.replica.<trạm>], chỉ make ext-* dùng tới
         self.replicas = {f"{s}_replica": dict(v, of=s)
                          for s, v in raw.get("ext", {}).get("replica", {}).items()}
+        self.secure = raw.get("ext", {}).get("secure", {})         # E3: [ext.secure]
         self.here = os.environ.get("MACHINE", "A")
         self.central = self.project["central"]
         self.db = self.project["db"]

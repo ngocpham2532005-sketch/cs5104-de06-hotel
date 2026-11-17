@@ -102,4 +102,4 @@
   [OK  ] hotel @ danang     (17 / summary.json 17)
   [OK  ] dòng liên vùng (đoàn ≥ 2 vùng)  (5144 / summary.json 5144)
 
-KẾT LUẬN: ĐẠT · 7.1s
+KẾT LUẬN: ĐẠT · 7.6s

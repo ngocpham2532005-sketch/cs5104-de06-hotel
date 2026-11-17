@@ -94,6 +94,7 @@ Khi đổi mạng (ví dụ chuyển sang điểm phát Wi-Fi): sửa IP trong `
 |---|---|---|
 | E1 | Bản sao dự phòng (streaming replication) của `phuquoc` đặt ở máy A; trạm chính chết thì postgres_fdw chuyển sang đọc bản sao | `make ext-replica` · `ext-replica-status` · `ext-failover` · `ext-failback` · `ext-watch` · `ext-replica-down` |
 | E2 | 2PC tạo đoàn tour có nhật ký điều phối bền vững; giả lập bộ điều phối chết và phục hồi giao dịch lưỡng lự | `make ext-2pc-crash CRASH=prepare\|decision\|mid-commit` · `ext-2pc-status` · `ext-2pc-recover [FORCE=1]` |
+| E3 | Đường postgres_fdw kiểu production khi các trạm ở các nơi khác nhau: CA nội bộ, TLS `verify-full` + chứng chỉ máy khách, tên DNS nội bộ, role `fdw_reader` chỉ đọc, không mật khẩu | `make ext-secure` · `ext-secure-status` · `ext-secure-test` · `ext-secure-bench` · `ext-secure-down` |
 | — | So sánh phương án E1/E2 (sync/async, đọc chính/bản sao, chi phí 2PC) | `make ext-bench` → `results/ext/ext_bench.csv` |
 
 ## 5. Cấu trúc thư mục

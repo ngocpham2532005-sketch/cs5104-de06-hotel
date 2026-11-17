@@ -307,14 +307,17 @@ Giải thích:
 |---|---|---|
 | E1 | Bản sao hot standby của mảnh `phuquoc` (máy B) đặt ở máy A, nhận WAL qua streaming replication bất đồng bộ. `make ext-failover` đổi `srv_phuquoc` sang bản sao (chỉ đọc, không promote để tránh split-brain) | dựng ≈ 10 s; độ trễ sao chép trung vị 1,9 ms; tắt `phuquoc` rồi failover thì Q2, Q3 chạy lại và khớp đối chứng |
 | E2 | 2PC tạo đoàn tour có nhật ký điều phối fsync (`begin` → PREPARE ×4 → `commit` → COMMIT PREPARED ×4 → `end`). `make ext-2pc-recover` giải quyết giao dịch lưỡng lự theo *presumed abort*. Đồng thời sửa lỗi bản cũ: lỗi ở pha 2 làm rollback các trạm chưa commit | giả lập bộ điều phối chết sau `prepare`, `decision`, `mid-commit`: phục hồi đúng cả ba; `make check` vẫn ĐẠT |
+| E3 | Đường `postgres_fdw` cho các trạm ở các nơi khác nhau, kiểu production. CA nội bộ ký chứng chỉ máy chủ (SAN = `<trạm>.db.nhom8.internal`, không có IP) và chứng chỉ máy khách `CN=fdw_reader`. Trạm xa bật TLS ≥ 1.3; `pg_hba` chỉ cho `fdw_reader` vào bằng `hostssl … cert`. Role chỉ có `SELECT`. `srv_*` gọi trạm bằng tên DNS nội bộ, `sslmode=verify-full`, `sslnegotiation=direct`; user mapping **không còn mật khẩu** | 7/7 phép thử đạt: 2 kết nối đúng; bị từ chối khi không mã hoá, gọi bằng IP, thiếu chứng chỉ máy khách, chứng chỉ do CA lạ ký, `fdw_reader` thử ghi. Q1–Q5 khớp đối chứng và `make check` ĐẠT khi bật; `make ext-secure-down` trả về như cũ |
 
-So sánh phương án (`make ext-bench`, hai máy thật, trung vị 20 lần; `results/ext/ext_bench.csv`):
+So sánh phương án (hai máy thật; E1/E2: `make ext-bench`, trung vị 20 lần, `results/ext/ext_bench.csv`; E3: `make ext-secure-bench`, trung vị 9 phiên, `results/ext/e3_bench.csv`):
 
 | Phép so sánh | Kết quả | Giải thích |
 |---|---|---|
 | Ghi một lượt đặt vào `phuquoc`: sao chép bất đồng bộ / `on` / `remote_apply` | 28,7 / 34,6 / 35,7 ms | đồng bộ thêm đúng 1 vòng B→A (+21–25%); vẫn chọn bất đồng bộ, vì nếu đồng bộ thì bản sao chết sẽ làm ghi ở trạm chính treo |
 | Q2 đọc mảnh `phuquoc` từ trạm chính (máy B) / bản sao (máy A), trễ 30 ms | 439,5 / 330,9 ms | bớt một trạm xa thì bớt ≈ 3,6 vòng: kiểm chứng độc lập con số ≈ 3 vòng/trạm của N3 |
 | Tạo đoàn: 4 INSERT không nguyên tử / 2PC / 2PC + nhật ký | 149 / 219 / 221 ms | 2PC tốn ≈ 2 vòng mỗi trạm; nhật ký fsync chỉ +1,8 ms |
+| E3, trễ 30 ms, mở một kết nối fdw tới `phuquoc`: không mã hoá + SCRAM / TLS + chứng chỉ / TLS direct + chứng chỉ | 469 / 382 / 340 ms | xác thực bằng chứng chỉ bỏ được 2 vòng trao đổi SCRAM, bù cho bắt tay TLS 1.3; `direct` bỏ thêm vòng SSLRequest (−42 ms ≈ 1,4 vòng) |
+| E3, trễ 30 ms, khi kết nối đã mở: truy vấn nhỏ / Q2 (cùng ba chế độ trên) | 203 / 209 / 207 · 456 / 428 / 458 ms | chênh lệch nằm trong biên dao động của Wi-Fi: mã hoá AES-GCM gần như không tốn gì; TLS chỉ tốn lúc mở kết nối, mà postgres_fdw giữ kết nối suốt phiên |
 
 ## 6. Phân công
 
@@ -330,6 +333,6 @@ Có sử dụng trợ lý AI để hỗ trợ viết mã và văn bản (ghi rõ
 ## 7. Tài liệu tham khảo
 1. M. T. Özsu, P. Valduriez. *Principles of Distributed Database Systems*, 4th ed., Springer, 2020 (Ch. 2, 4).
 2. Cao Tiến Dũng. *Giáo trình Hệ cơ sở dữ liệu nâng cao (CS5104)*, Trường ĐH Tân Tạo, 2026 — Chương 1–3, 8; Tập 2: Bài 1, 2, 3, 8, Phụ lục B.
-3. PostgreSQL Global Development Group. *PostgreSQL 18 Documentation*: F.38 postgres_fdw; 8.14 JSON Types; 65.4 GIN Indexes; PREPARE TRANSACTION.
+3. PostgreSQL Global Development Group. *PostgreSQL 18 Documentation*: F.38 postgres_fdw; 8.14 JSON Types; 65.4 GIN Indexes; PREPARE TRANSACTION; 18.9 SSL; 20.12 Certificate Authentication; 32.19 SSL Support (libpq).
 4. Linux man-pages: `tc-netem(8)`, `tc-prio(8)`, `tc-u32(8)`.
 5. Psycopg 3 Documentation (COPY, two-phase commit); Streamlit Documentation (`st.fragment`).

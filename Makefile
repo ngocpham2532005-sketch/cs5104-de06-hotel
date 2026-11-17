@@ -26,7 +26,8 @@ GEN := datagen/de06_hotel/generate.py
 .PHONY: all up down data load link check bench slope delay-on delay-off entry dash q \
         venv build status stop-site start-site apps-start apps-stop help \
         ext-help ext-replica ext-replica-status ext-failover ext-failback ext-watch ext-replica-down \
-        ext-2pc-crash ext-2pc-status ext-2pc-recover ext-bench
+        ext-2pc-crash ext-2pc-status ext-2pc-recover ext-bench \
+        ext-secure ext-secure-status ext-secure-test ext-secure-bench ext-secure-down
 
 help:
 	@echo "make all [MACHINE=A|B] | up | data | load | link | check | bench | slope | delay-on | delay-off | entry | dash | down"
@@ -113,11 +114,13 @@ apps-stop:
 # Không nằm trong `make all`; không đổi kết quả D1–D8, N1–N5. Chi tiết, kịch bản demo: docs/NANG_CAO.md
 #   E1  bản sao dự phòng (streaming replication) cho trạm phuquoc + chuyển đọc khi trạm chết
 #   E2  2PC có nhật ký điều phối bền vững + phục hồi giao dịch lưỡng lự
+#   E3  đường postgres_fdw kiểu production: TLS verify-full + chứng chỉ máy khách, DNS nội bộ, role chỉ đọc
 RSITE ?=
 
 ext-help:
 	@echo "E1 · make ext-replica | ext-replica-status | ext-failover | ext-failback | ext-watch | ext-replica-down  [RSITE=phuquoc]"
 	@echo "E2 · make ext-2pc-crash CRASH=prepare|decision|mid-commit | ext-2pc-status | ext-2pc-recover [FORCE=1]"
+	@echo "E3 · make ext-secure | ext-secure-status | ext-secure-test | ext-secure-bench | ext-secure-down"
 	@echo "So sánh phương án E1/E2: make ext-bench  (-> results/ext/ext_bench.csv)"
 	@echo "Xem docs/NANG_CAO.md"
 
@@ -151,3 +154,18 @@ ext-2pc-recover:
 
 ext-bench:               ## so sánh: sync/async replication, đọc chính/bản sao, chi phí 2PC + nhật ký
 	$(VPY) tools/ext_bench.py
+
+ext-secure:              ## E3: PKI nội bộ, TLS ở trạm xa, role fdw_reader chỉ đọc, srv_* verify-full + cert
+	$(VPY) tools/ext_secure.py up
+
+ext-secure-status:
+	$(VPY) tools/ext_secure.py status
+
+ext-secure-test:         ## E3: 7 phép thử (không mã hoá / sai tên / thiếu cert / CA lạ / thử ghi đều phải bị từ chối)
+	$(VPY) tools/ext_secure.py test
+
+ext-secure-bench:        ## E3: chi phí TLS ở trễ 0 / 30 ms (-> results/ext/e3_bench.csv)
+	$(VPY) tools/ext_secure.py bench
+
+ext-secure-down:
+	$(VPY) tools/ext_secure.py down

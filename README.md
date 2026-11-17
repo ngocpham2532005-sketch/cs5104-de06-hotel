@@ -9,8 +9,22 @@ khung nhìn toàn cục `all_<bảng>`; có giao diện nhập liệu và dashbo
 | A | macOS | `nhatrang` (trung tâm), `dalat`, `ref` (CSDL đối chứng), nhập liệu, dashboard | 5433, 5434, 5440, 8501, 8502 |
 | B | Windows 10/11 | `phuquoc`, `danang` | 5435, 5436 |
 
+**Nhóm 8** · Đào Minh Hùng (2632006) · Phạm Thị Kim Ngọc (2532005) · Nguyễn Khánh Hòa (2532018) · Vương Thảo Nguyên (2532013)
+· Đề 6, seed 402738 · Mã nguồn: <https://github.com/ngocpham2532005-sketch/cs5104-de06-hotel>, branch `nhom8-de06-hotel-ddb`
+(bản nộp sẽ gắn tag `final`).
+
 Tài liệu: [IMPLEMENT.md](IMPLEMENT.md) (thiết kế và cách cài đặt chi tiết) · [docs/BAO_CAO.md](docs/BAO_CAO.md) (báo cáo, bản PDF ở `docs/BAO_CAO.pdf`)
-· [docs/NANG_CAO.md](docs/NANG_CAO.md) (**phần mở rộng, ngoài yêu cầu đề**).
+· [docs/NANG_CAO.md](docs/NANG_CAO.md) (**phần mở rộng, ngoài yêu cầu đề**) · [docs/KIEN_THUC_BAO_VE.md](docs/KIEN_THUC_BAO_VE.md) (ôn tập bảo vệ, nội bộ).
+
+**Kết quả chính** (hai máy thật qua Wi-Fi LAN, chi tiết ở báo cáo mục 5):
+
+| | Kết quả |
+|---|---|
+| Nạp dữ liệu | 190.831 dòng, từng mảnh khớp `summary.json`; tổng các mảnh = CSDL đối chứng |
+| `make check` | ĐẠT 103/103 (ba quy tắc đúng đắn, PK/FK toàn hệ, jsonb ⇄ bản quan hệ) |
+| Q1–Q5 | giống hệt CSDL đối chứng; Q1 chạy trọn tại `dalat` (0 Foreign Scan) |
+| Trễ 30 ms | Q1 0,5 ms (không đổi); Q2 436 ms, Q3 423 ms, Q4 449 ms, Q5 438 ms (≈ 11 vòng khứ hồi) |
+| Dòng liên vùng | 5.144 / 80.000 = 6,43%; Q3 của đoàn một vùng tốn ngang đoàn ba vùng (426 / 428 ms) |
 
 ---
 
@@ -93,12 +107,36 @@ Khi đổi mạng (ví dụ chuyển sang điểm phát Wi-Fi): sửa IP trong `
 > Làm thêm, **không bắt buộc**, không nằm trong `make all` và không đổi kết quả D1–D8, N1–N5. Chi tiết: [docs/NANG_CAO.md](docs/NANG_CAO.md).
 > Lúc demo D8 bắt buộc thì **không** bật `ext-failover`/`ext-watch` (đề muốn thấy Q2 lỗi khi trạm chết).
 
-| Mã | Nội dung | Lệnh (máy A) |
+| Mã | Nội dung | Lệnh |
 |---|---|---|
 | E1 | Bản sao dự phòng (streaming replication) của `phuquoc` đặt ở máy A; trạm chính chết thì postgres_fdw chuyển sang đọc bản sao | `make ext-replica` · `ext-replica-status` · `ext-failover` · `ext-failback` · `ext-watch` · `ext-replica-down` |
 | E2 | 2PC tạo đoàn tour có nhật ký điều phối bền vững; giả lập bộ điều phối chết và phục hồi giao dịch lưỡng lự | `make ext-2pc-crash CRASH=prepare\|decision\|mid-commit` · `ext-2pc-status` · `ext-2pc-recover [FORCE=1]` |
 | E3 | Đường postgres_fdw kiểu production khi các trạm ở các nơi khác nhau: CA nội bộ, TLS `verify-full` + chứng chỉ máy khách, tên DNS nội bộ, role `fdw_reader` chỉ đọc, không mật khẩu | lab: `make ext-secure` · `ext-secure-status` · `ext-secure-test` · `ext-secure-bench` · `ext-secure-down` <br> PRD (khoá không rời trạm): mỗi máy `ext-secure-site-csr` → máy A `ext-secure-sign` → mỗi máy `ext-secure-site-install` → máy A `ext-secure-link` |
 | — | So sánh phương án E1/E2 (sync/async, đọc chính/bản sao, chi phí 2PC) | `make ext-bench` → `results/ext/ext_bench.csv` |
+
+E1, E2 và E3 chế độ lab chỉ chạy ở máy A. **E3 chế độ PRD** chạy ở cả hai máy, mỗi máy chỉ thao tác trên trạm của mình:
+```bash
+# 0. (máy A) cập nhật mã nguồn sang máy B
+make sync-remote SSH=<user>@<IP máy B> DEST=C:/cs5104/de06_hotel_ddb KEY=<khoá SSH>
+# 1. (máy A) CA nội bộ — một lần
+make ext-secure-ca-init
+# 2. (mỗi máy) sinh khoá TRONG container của trạm + CSR -> build/e3/exchange/*.csr
+make ext-secure-site-csr                    # máy B: phuquoc, danang · máy A: dalat
+make ext-secure-site-csr CLIENT=1           # máy A: chứng chỉ máy khách fdw_reader cho trạm trung tâm
+# 3. chép *.csr của máy B sang build/e3/exchange/ của máy A, rồi (máy A) ký
+make ext-secure-sign
+# 4. chép <trạm>.crt + ca.crt về build/e3/exchange/ của máy B, rồi (mỗi máy) cài
+make ext-secure-site-install                 # máy A thêm: make ext-secure-site-install CLIENT=1
+# 5. (máy A) nối postgres_fdw bằng TLS + chứng chỉ, kiểm tra
+make ext-secure-link && make ext-secure-test && make check
+# trạng thái / gia hạn / gỡ
+make ext-secure-site-status                  # cảnh báo khi chứng chỉ còn < 30 ngày
+make ext-secure-site-csr ROTATE=1            # gia hạn: rồi sign → install như trên
+make ext-secure-site-uninstall               # mỗi máy; sau đó (máy A) make ext-secure-down
+```
+Trên máy B (Windows), các lệnh `ext-secure-site-*` chỉ cần Python, không cần venv. Khi điều khiển qua SSH, gọi qua
+`powershell -File C:\cs5104\runB.ps1 <target>` (script bỏ credential helper của Docker, vốn lỗi trong phiên SSH).
+CSR và chứng chỉ là dữ liệu công khai, chép bằng scp, USB hoặc git đều được; khoá riêng không bao giờ rời container của trạm.
 
 ## 5. Cấu trúc thư mục
 
@@ -110,16 +148,25 @@ datagen/de06_hotel/generate.py    bộ sinh của giảng viên — KHÔNG SỬA
 sql/schema_central.sql            lược đồ tập trung (CSDL đối chứng)
 sql/site_schema.sql               lược đồ một trạm: mảnh + CHECK + FK + sequence + khung nhìn cục bộ
 sql/generated_link.sql            (sinh ra) SQL postgres_fdw + all_* ở trạm trung tâm
-sql/queries/                      q1..q5 (bản phân tán), *_ref.sql (bản đối chứng), biến thể so sánh
-tools/                            deploy, split, load, link, check, bench, delay, demo, apps
+sql/queries/                      q1..q5 (bản phân tán), *_ref.sql (bản đối chứng), biến thể so sánh, q3_single (đoàn một vùng)
+tools/                            deploy, split, load, link, check, bench, delay, demo, apps, rtt_slope (đo số vòng khứ hồi)
                                   onebox.py (chạy thử một máy, không cần make), latency_proxy.py (trễ dự phòng)
-                                  ext_replica.py (E1), twopc.py (E2) — phần mở rộng
+                                  sync_remote.py (cập nhật mã nguồn sang máy khác qua SSH)
+                                  phần mở rộng: ext_replica.py (E1), twopc.py (E2), ext_bench.py,
+                                  ext_secure.py (E3: lab, CA, ký, nối fdw), ext_secure_site.py (E3 PRD, chạy tại từng máy)
 app/                              entry.py (nhập liệu), dash.py (dashboard) — Streamlit
 results/                          results.csv, explain/, n1/n4/n5_*.csv, check.txt, ext/ (nhật ký phần mở rộng)
-docs/                             BAO_CAO.md / .pdf, NANG_CAO.md (phần mở rộng), ảnh giao diện
+docs/                             BAO_CAO.md / .pdf, NANG_CAO.md (phần mở rộng), KIEN_THUC_BAO_VE.md, ảnh giao diện
+build/                            (sinh ra, không vào git) image context, mảnh CSV, PKI của E3 (build/e3/: khoá CA)
 ```
 
-## 6. Sử dụng công cụ AI
+## 6. Nguồn gốc của branch này
+
+Branch `nhom8-de06-hotel-ddb` thay toàn bộ cây thư mục của `main` (bản thử nghiệm ban đầu) bằng bản `de06_hotel_ddb`,
+là bản đã chạy `make all` và đo trên hai máy thật. Branch giữ lại các ý hay của `main`: `onebox.py`, proxy trễ dự phòng
+và phép so sánh Q3 giữa đoàn một vùng và đoàn nhiều vùng. Sau đó bổ sung phần mở rộng E3.
+
+## 7. Sử dụng công cụ AI
 
 Nhóm dùng trợ lý AI (Claude Code) để hỗ trợ viết mã (Python, SQL, Makefile) và soạn tài liệu. Toàn bộ thiết kế phân tán,
 mã nguồn và số liệu đã được nhóm kiểm tra, chạy lại và giải thích được; số liệu tái lập được bằng bộ sinh của

@@ -1,114 +1,171 @@
 <div class="cover" markdown="1">
 
-**TRƯỜNG ĐẠI HỌC TÂN TẠO · KHOA CÔNG NGHỆ THÔNG TIN**<br>
-CS5104 — Hệ cơ sở dữ liệu nâng cao · Project nhóm cuối kỳ
+<p class="cv-top">BỘ GIÁO DỤC VÀ ĐÀO TẠO<br><b>TRƯỜNG ĐẠI HỌC TÂN TẠO</b><br>KHOA CÔNG NGHỆ THÔNG TIN</p>
 
-# Đề 6 · Chuỗi khách sạn nghỉ dưỡng<br>Cơ sở dữ liệu phân tán 4 trạm PostgreSQL 18 trên 2 máy
+<p class="cv-kind">BÁO CÁO PROJECT NHÓM CUỐI KỲ</p>
 
-Nhóm 8 · Đào Minh Hùng (2632006) · Phạm Thị Kim Ngọc (2532005) · Nguyễn Khánh Hòa (2532018) · Vương Thảo Nguyên (2532013)<br>
-Mã nguồn: [link GitHub], tag `final` · Seed của đề: 402738 · Năm 2026
+<p class="cv-course">Học phần: <b>CS5104 — Hệ cơ sở dữ liệu nâng cao</b><br>(Chương trình đào tạo trình độ Thạc sĩ)</p>
+
+<p class="cv-title">ĐỀ 6: CHUỖI KHÁCH SẠN NGHỈ DƯỠNG</p>
+<p class="cv-sub">Thiết kế và triển khai cơ sở dữ liệu phân tán<br>bốn trạm PostgreSQL 18 trên hai máy</p>
+
+<table class="cv-info">
+<tr><td>Giảng viên</td><td>TS. Cao Tiến Dũng</td></tr>
+<tr><td>Nhóm thực hiện</td><td>Nhóm 8</td></tr>
+<tr><td>Thành viên</td><td>Đào Minh Hùng — 2632006<br>Phạm Thị Kim Ngọc — 2532005<br>Nguyễn Khánh Hòa — 2532018</td></tr>
+<tr><td>Mã nguồn</td><td>github.com/ngocpham2532005-sketch/cs5104-de06-hotel (tag <code>final</code>)</td></tr>
+<tr><td>Dữ liệu</td><td>Bộ sinh của giảng viên, seed 402738, cỡ <code>lab</code></td></tr>
+</table>
+
+<p class="cv-date">Tây Ninh, tháng 11 năm 2026</p>
 
 </div>
 
-**Tóm tắt.** Từ lược đồ tập trung của Đề 6 (9 bảng, cột `booking.request` kiểu jsonb), nhóm phân tán dữ liệu ra 4 trạm
-PostgreSQL 18, mỗi vùng du lịch một trạm: `dalat`, `nhatrang` (trạm trung tâm), `phuquoc`, `danang`. Hệ chạy trên máy A (macOS)
-và máy B (Windows). `hotel` được phân mảnh ngang theo `region`; `room`, `booking` và các bảng `req_*` được phân mảnh ngang dẫn xuất
-theo chuỗi khoá ngoại; `room_type`, `tour_group` được sao chép ra cả 4 trạm. Trạm trung tâm truy vấn xuyên trạm bằng `postgres_fdw`
-qua 7 khung nhìn `all_<bảng>`. Mọi kết nối qua mạng đều mã hoá TLS 1.3 và kiểm chứng chỉ (`verify-full`) với CA nội bộ của nhóm;
-`postgres_fdw` tới trạm xa dùng role chỉ đọc, xác thực bằng chứng chỉ, không mật khẩu. Cả hệ dựng được bằng một lệnh `make all` trên mỗi máy; `make check` đạt cả 103 phép kiểm tra;
-Q1–Q5 cho kết quả giống hệt CSDL đối chứng. Đo trên hai máy thật (Wi-Fi LAN), với trễ 30 ms Q1 không đổi (0,5 ms) vì chạy trọn tại
-trạm dalat; Q2–Q5 tăng lên khoảng 430–460 ms, tương ứng khoảng 11 vòng khứ hồi; bật TLS không làm thay đổi số vòng này. Con số này khớp mô hình *T ≈ số vòng khứ hồi × RTT*
-(công thức 1.1 của giáo trình).
+<div class="toc" markdown="1">
+
+**MỤC LỤC**
+
+<table class="toc-t">
+<tr><td>Tóm tắt</td><td></td><td>TOC1</td></tr>
+<tr><td>1. Thiết kế phân tán và lập luận</td><td>1.1 Vì sao cần chia dữ liệu · 1.2 Các truy vấn cần gì · 1.3 Cách chia các bảng · 1.4 Vì sao không mất, không trùng dữ liệu · 1.5 Khoá và ràng buộc · 1.6 Dòng liên vùng · 1.7 Bảo mật đường truyền</td><td>TOC2</td></tr>
+<tr><td>2. Sơ đồ triển khai, giao diện và dashboard</td><td>Cách triển khai · Giao diện nhập liệu · Dashboard</td><td>TOC3</td></tr>
+<tr><td>3. Nạp dữ liệu và đối chiếu với summary.json</td><td></td><td>TOC4</td></tr>
+<tr><td>4. Cách chạy</td><td></td><td>TOC5</td></tr>
+<tr><td>5. Kết quả và giải thích N1–N5</td><td>N1 · N2 · N3 · N4 · N5 · 5.6 Phần làm thêm</td><td>TOC6</td></tr>
+<tr><td>6. Phân công công việc</td><td></td><td>TOC7</td></tr>
+<tr><td>7. Tài liệu tham khảo</td><td></td><td>TOC8</td></tr>
+</table>
+
+</div>
+
+## Tóm tắt
+
+**Bài toán.** Một chuỗi khách sạn có khách sạn ở bốn vùng: Đà Lạt, Nha Trang, Phú Quốc và Đà Nẵng. Đề cho sẵn một cơ sở dữ liệu
+(CSDL) "tập trung", tức mọi thứ nằm trên một máy, gồm 9 bảng: khách sạn, phòng, loại phòng, đoàn tour, lượt đặt phòng và các yêu cầu
+riêng của từng loại khách. Nhiệm vụ là chia CSDL này ra bốn **trạm**, mỗi vùng một trạm (mỗi trạm là một máy chủ PostgreSQL riêng),
+đặt trên hai máy tính khác nhau, rồi chứng minh hệ vẫn trả lời đúng và đo xem việc đi qua mạng làm truy vấn chậm đi bao nhiêu.
+
+**Cách làm.** Mỗi khách sạn được lưu ở trạm của vùng mình, và mọi thứ thuộc về khách sạn đó (phòng, lượt đặt, yêu cầu của khách) đi theo
+nó về cùng trạm. Hai bảng nhỏ dùng chung (loại phòng, đoàn tour) được chép đủ ra cả bốn trạm. Trạm Nha Trang đóng vai **trạm trung tâm**:
+khi cần dữ liệu của cả chuỗi, nó hỏi ba trạm còn lại qua mạng rồi gộp kết quả.
+
+**Kết quả.** Hệ dựng được bằng một lệnh trên mỗi máy và vượt qua cả 103 phép kiểm tra tính đúng đắn. Cả năm truy vấn của đề (Q1–Q5) cho
+kết quả giống hệt CSDL tập trung. Khi giả lập mạng chậm thêm 30 ms, truy vấn chỉ dùng dữ liệu một vùng (Q1) gần như không đổi (0,55 ms).
+Các truy vấn phải hỏi cả bốn trạm (Q2–Q5) tăng lên khoảng 430–460 ms, vì trạm trung tâm phải trao đổi khoảng 11 lượt đi-về với các
+trạm khác, mỗi lượt mất thêm 30 ms.
 
 ## 1. Thiết kế phân tán và lập luận
 
-### 1.1 Phân tích tải
-Theo đề, dữ liệu phòng và đặt phòng lưu tại vùng của khách sạn. Các truy vấn định hướng thiết kế:
-- **Q1** (công suất phòng khách sạn Đà Lạt): chỉ dùng `hotel`, `room`, `booking` của một vùng.
-- **Q2** (doanh thu theo vùng × loại phòng) và **Q4/Q5** (khách gia đình): gộp cả 4 vùng.
-- **Q3** (phòng của một đoàn tour đi nhiều vùng): là truy vấn "liên vùng" duy nhất.
+### 1.1 Vì sao cần chia dữ liệu
+Nếu giữ nguyên một CSDL tập trung đặt ở một nơi, mọi khách sạn ở ba vùng còn lại đều phải gửi dữ liệu qua mạng tới nơi đó, kể cả khi chỉ
+xem phòng của chính mình. Chia dữ liệu theo vùng giải quyết bốn vấn đề:
+- **Truy vấn trong một vùng chạy tại chỗ, không chờ mạng.** Q1 (khách sạn Đà Lạt) chạy ngay tại trạm Đà Lạt mất 0,55 ms, kể cả khi mạng chậm
+  thêm 30 ms. Nếu phải đi qua mạng, một câu hỏi tối thiểu tới trạm khác đã mất 165–214 ms (Mục 5, N3).
+- **Một vùng gặp sự cố không kéo cả chuỗi dừng theo.** Khi tắt trạm Đà Nẵng (D8), các vùng khác vẫn đặt phòng và Q1 vẫn chạy; chỉ các truy vấn
+  cần số liệu Đà Nẵng mới báo lỗi.
+- **Tải được chia ra.** Mỗi trạm chỉ giữ và xử lý khoảng một phần tư số lượt đặt (16–24 nghìn trên 80 nghìn, Bảng 2).
+- **Đúng với cách chuỗi vận hành.** Đề yêu cầu dữ liệu phòng và đặt phòng lưu tại vùng của khách sạn, vì mỗi vùng tự quản lý khách sạn của mình.
 
-Vị từ đơn giản có ích duy nhất là `region = r`, tạo ra 4 vị từ tổ hợp không mâu thuẫn (Ví dụ 2.1 của giáo trình).
-Các bảng còn lại không có cột vùng, nhưng nối với `hotel` qua chuỗi khoá ngoại `hotel ← room ← booking ← req_*`.
+Cái giá phải trả là các câu hỏi cần số liệu của cả chuỗi (doanh thu toàn chuỗi, danh sách khách gia đình) phải hỏi nhiều trạm và chậm hơn.
+Thiết kế bên dưới nhằm giữ phần lớn công việc ở tại chỗ và làm cho các câu hỏi toàn chuỗi tốn ít lượt trao đổi qua mạng nhất có thể.
 
-### 1.2 Chia bảng và cấp phát
+### 1.2 Các truy vấn cần gì
+Đề yêu cầu dữ liệu phòng và đặt phòng **lưu tại vùng của khách sạn**. Năm truy vấn của đề cần dữ liệu như sau:
+- **Q1** (tỉ lệ phòng có khách ở các khách sạn Đà Lạt) chỉ cần dữ liệu của vùng Đà Lạt.
+- **Q2** (doanh thu theo vùng và loại phòng), **Q4** và **Q5** (khách gia đình cần đón sân bay, có con dưới 6 tuổi) cần dữ liệu của cả bốn vùng.
+- **Q3** (tất cả phòng của một đoàn tour) cần dữ liệu của những vùng mà đoàn đi qua; có đoàn đi nhiều vùng.
 
-| Bảng | Cách chia | Định nghĩa mảnh ở trạm *s* | Lý do |
-|---|---|---|---|
-| `room_type` (15) | sao chép đầy đủ | toàn bộ | nhỏ, chỉ đọc; Q1/Q2 nối tại chỗ |
-| `tour_group` (800) | sao chép đầy đủ | toàn bộ | nhỏ, ít ghi; khoá ngoại `booking.tour_group_id` kiểm được tại trạm; thêm mới bằng 2PC |
-| `hotel` | ngang chính | σ<sub>region = s</sub>(hotel) | mỗi vùng quản lý khách sạn của mình |
-| `room` | ngang dẫn xuất | room ⋉ hotel<sub>s</sub> | phòng đi theo khách sạn |
-| `booking` | ngang dẫn xuất | booking ⋉ room<sub>s</sub> | đặt phòng lưu tại vùng khách sạn (đề); Q1 tại chỗ |
-| `req_tour/business/family` | dẫn xuất | req ⋉ booking<sub>s</sub> | jsonb và bản quan hệ cùng trạm → ghi trong 1 giao dịch |
-| `req_family_child` | dẫn xuất nối tiếp | child ⋉ req_family<sub>s</sub> | Mục 2.4.2 của giáo trình |
+Như vậy câu hỏi tự nhiên nhất là "dữ liệu này thuộc vùng nào". Bảng khách sạn có sẵn cột `region` (vùng), còn các bảng khác không có,
+nhưng đều nối được về khách sạn: lượt đặt → phòng → khách sạn.
 
-Không dùng phân mảnh dọc: không có nhóm cột nào được truy cập ở nơi khác, cũng không có dữ liệu nhạy cảm cần tách riêng.
+### 1.3 Cách chia các bảng
+Có ba cách đưa một bảng lên các trạm:
+- **chia theo vùng:** mỗi trạm giữ các khách sạn có `region` là vùng của trạm;
+- **chia theo bảng cha:** mỗi trạm giữ các dòng mà dòng cha của nó (theo khoá ngoại) đang ở trạm đó. Ví dụ, trạm Đà Lạt giữ các phòng
+  thuộc khách sạn Đà Lạt, và các lượt đặt của những phòng đó;
+- **chép đủ:** mỗi trạm có một bản đầy đủ của bảng.
 
-**Cấp phát:**
-- Máy A (macOS): `nhatrang` (trung tâm, cổng 5433), `dalat` (5434), CSDL đối chứng `ref` (5440), giao diện và dashboard.
-- Máy B (Windows): `phuquoc` (5435), `danang` (5436).
+**Bảng 1.** Cách chia từng bảng.
 
-Đặt `dalat` ở máy A có hai lý do. Một là Q1 vẫn chạy khi máy B gặp sự cố (D8). Hai là so sánh được trạm xa *cùng máy* với trạm *ở máy B* (N3).
+| Bảng | Cách chia | Lý do |
+|---|---|---|
+| khách sạn (`hotel`) | theo vùng (`region`) | mỗi vùng quản lý khách sạn của mình |
+| phòng (`room`) | theo khách sạn | phòng luôn nằm cùng trạm với khách sạn của nó |
+| lượt đặt (`booking`) | theo phòng | đề yêu cầu lượt đặt lưu ở vùng của khách sạn; Q1 chạy được ngay tại trạm Đà Lạt |
+| yêu cầu của khách tour, công tác, gia đình (`req_*`) | theo lượt đặt | lượt đặt và yêu cầu của nó cùng trạm, nên ghi được trong một lần |
+| trẻ em đi cùng (`req_family_child`) | theo yêu cầu gia đình | đi theo bảng cha của nó |
+| loại phòng (`room_type`, 15 dòng) | chép đủ | nhỏ, hầu như không đổi, trạm nào cũng cần |
+| đoàn tour (`tour_group`, 800 dòng) | chép đủ | nhỏ; một đoàn có phòng ở nhiều vùng nên không thuộc riêng vùng nào |
 
-**Phương án đã cân nhắc nhưng loại:** chia `booking` dẫn xuất theo `tour_group`, để mọi phòng của một đoàn nằm ở trạm "nhà" của đoàn.
-Cách này làm Q3 chạy tại chỗ, nhưng đánh đổi ba thứ:
-- 45% lượt đặt (khách đoàn) bị tách khỏi phòng và khách sạn của chúng, làm hỏng phép nối `booking–room` tại chỗ của Q1, Q2;
-- trái với yêu cầu "đặt phòng lưu tại vùng khách sạn";
-- vi phạm ràng buộc thiết kế số 1 ("mỗi trạm giữ dữ liệu vùng mình").
+**Ví dụ.** Khách sạn số 1 "Sông Tiền Resort Đà Lạt" có `region = dalat`, nên được lưu ở trạm Đà Lạt. Các phòng của khách sạn này cũng
+nằm ở trạm Đà Lạt, các lượt đặt những phòng đó cũng vậy, và yêu cầu của từng khách (ăn sáng, đón sân bay, tuổi các con…) đi theo lượt đặt.
+Nếu đoàn TG0001 đặt thêm một phòng ở một khách sạn Phú Quốc, lượt đặt đó nằm ở trạm Phú Quốc, cùng với phòng và khách sạn của nó. Thông tin
+về đoàn TG0001 thì có ở cả bốn trạm, vì bảng đoàn tour được chép đủ.
 
-Phương án được chọn chỉ buộc đúng 6,4% dòng (dòng liên vùng) đi qua mạng, và chỉ ở Q3.
+Viết theo ký hiệu của giáo trình, mảnh ở trạm *s* là: hotel<sub>s</sub> = σ<sub>region = s</sub>(hotel); room<sub>s</sub> = room ⋉ hotel<sub>s</sub>;
+booking<sub>s</sub> = booking ⋉ room<sub>s</sub>; req<sub>s</sub> = req ⋉ booking<sub>s</sub>. Phép ⋉ (nửa nối) nghĩa là "giữ các dòng có dòng cha
+nằm trong mảnh cha".
 
-### 1.3 Ba quy tắc đúng đắn
-- **Đầy đủ:** mỗi khách sạn có đúng một `region` thuộc 4 giá trị, nên nằm trong một mảnh. `room`, `booking`, `req_*` đều có khoá ngoại
-  NOT NULL tới cha, nên không có dòng mồ côi bị rơi khỏi mọi mảnh (đúng điều kiện nêu ở Mục 2.4.2).
-- **Rời nhau:** các vị từ `region = r` loại trừ nhau, và mỗi dòng con chỉ có một cha.
-- **Tái tạo được:** `all_<bảng>` = UNION ALL của 4 mảnh. `make check` kiểm bằng `EXCEPT ALL` hai chiều so với `ref` (Mã 2.1 của giáo trình).
+Kết quả là mỗi trạm chứa một "lát" đầy đủ của chuỗi khách sạn: khách sạn của vùng, phòng, lượt đặt, yêu cầu của khách, cùng hai bảng dùng
+chung. Mỗi lát như vậy gọi là một **mảnh**. Nhóm không tách bảng theo cột, vì không có nhóm cột nào chỉ được dùng ở nơi khác.
 
-### 1.4 Khoá chính, khoá ngoại, CHECK
-- **Khoá chính toàn cục.** Dòng của bộ sinh đã có id duy nhất (< 10⁷). Dòng mới lấy `booking_id` từ sequence riêng của trạm số *no*,
-  chạy trong dải [no·10⁷+1, (no+1)·10⁷−1], được chặn thêm bằng CHECK `booking_id < 10⁷ OR booking_id BETWEEN …`.
-  Hai trạm không bao giờ sinh trùng id mà không cần hỏi nhau; nhìn id còn biết trạm gốc (dalat 1·10⁷, …, danang 4·10⁷).
-  Đoàn tour mới lấy id từ `tour_group_id_seq` ở trạm trung tâm (bắt đầu từ 100001).
-- **Khoá ngoại.** Nhờ phân mảnh dẫn xuất và sao chép, **cha và con luôn ở cùng trạm** với cả 8 khoá ngoại của lược đồ
-  (`room→hotel`, `room→room_type`, `booking→room`, `booking→tour_group`, `req_*→booking`, `req_family_child→req_family`).
-  Vì vậy tất cả được khai báo `REFERENCES` thật ở từng trạm. `make check` kiểm lại trên `all_*` để chứng minh tính đúng trên toàn hệ.
-- **CHECK mảnh.** `hotel`: `CHECK (region = '<trạm>')`. Với `room`/`booking`, CHECK không viết được truy vấn con, nên "đúng mảnh" được
-  bảo đảm bằng chuỗi khoá ngoại cục bộ: dòng chỉ được nhận nếu cha của nó có mặt ở trạm, mà cha thì đã bị CHECK ràng buộc vùng.
-- **CHECK cho jsonb:**
-  - `guest_type IN ('tour','business','family')`;
-  - `(guest_type = 'tour') = (tour_group_id IS NOT NULL)`;
-  - theo từng loại: đủ khoá (`?&`), đúng kiểu (`jsonb_typeof`), `meal_plan ∈ {BB,HB,FB}`, `group_code = 'TG'||lpad(tour_group_id,4,'0')`.
-  - Tính nhất quán jsonb ⇄ bản quan hệ được giữ bằng cách ghi cả hai trong một giao dịch (giao diện), và kiểm bằng `EXCEPT ALL` hai chiều
-    cho từng loại ở từng trạm.
+**Đặt trạm lên máy.** Máy A chạy trạm trung tâm Nha Trang, trạm Đà Lạt, một CSDL tập trung đầy đủ để đối chiếu kết quả (gọi là `ref`),
+giao diện nhập liệu và dashboard. Máy B chạy trạm Phú Quốc và Đà Nẵng. Trạm Đà Lạt được đặt ở máy A vì hai lý do: khi máy B gặp sự cố, Q1
+vẫn chạy được; và có thể so sánh việc hỏi một trạm cùng máy với hỏi một trạm ở máy khác.
 
-### 1.5 Dòng liên vùng
-Theo "Đặc điểm dữ liệu", lượt đặt của đoàn có phòng ở ≥ 2 vùng là dòng liên vùng. Theo thiết kế, mỗi lượt đặt nằm ở trạm của khách sạn,
-nên phòng của một đoàn như vậy rải ở nhiều trạm. Mặt khác, không bảng nào cho biết đoàn đi những vùng nào, nên **Q3 phải hỏi cả 4 trạm**.
-Bị ảnh hưởng chỉ có Q3; Q2, Q4, Q5 cũng chạm 4 trạm nhưng do câu hỏi gộp toàn hệ, không do dòng liên vùng.
+**Phương án đã xem xét nhưng không chọn.** Có thể chia lượt đặt theo đoàn tour, để mọi phòng của một đoàn nằm cùng một trạm và Q3 không
+phải đi qua mạng. Nhưng khi đó 45% lượt đặt (của khách đoàn) sẽ nằm khác trạm với phòng và khách sạn của chúng, nên Q1 và Q2 lại phải đi
+qua mạng; cách này cũng trái với yêu cầu "đặt phòng lưu tại vùng khách sạn" của đề. Với cách đã chọn, chỉ 6,4% lượt đặt gây ra truy vấn qua
+mạng, và chỉ trong Q3.
 
-### 1.6 Bảo mật đường truyền (E3)
-Hai máy là hai nơi, nên dữ liệu khách (tên, mã số thuế) đi qua mạng. Trạm trung tâm cũng không được tin một trạm chỉ vì nó có đúng IP.
-`make secure` (nằm trong `make all`, chạy lại được) dựng các lớp sau; chi tiết ở `docs/BAO_MAT.md`:
-- **PKI nội bộ.** CA ECDSA P-256 chỉ nằm ở máy A, ký trong container dùng một lần không có mạng. Mỗi nút (4 trạm + `ref`) có chứng chỉ
-  máy chủ với SAN là **tên** `<nút>.db.nhom8.internal`, không có IP, hạn 90 ngày. **Khoá riêng sinh trong container của nút** và không rời
-  khỏi đó: với trạm ở máy B, máy A gửi lệnh `openssl` qua kênh quản trị (`COPY … FROM PROGRAM`); qua mạng chỉ đi CSR và chứng chỉ.
-  Cài có kiểm tra (chuỗi CA, khớp khoá, SAN, hạn), sao lưu, kiểm lại sau reload và tự hoàn tác nếu lỗi.
-- **Mỗi nút:** TLS ≥ 1.3; `pg_hba` từ chối mọi kết nối qua mạng không mã hoá (kể cả replication).
-- **postgres_fdw:** gọi trạm bằng tên (DNS nội bộ ở trạm trung tâm), `sslmode=verify-full`, `sslnegotiation=direct`. Trạm xa dùng role
-  `fdw_reader` (chỉ `SELECT`) xác thực bằng chứng chỉ máy khách, không mật khẩu. Công cụ và giao diện ở máy A cũng kết nối `verify-full`.
+### 1.4 Vì sao cách chia này không làm mất hay trùng dữ liệu
+Giáo trình nêu ba điều kiện cho một cách chia đúng:
+- **Không mất dòng nào.** Mỗi khách sạn có đúng một vùng, nên nằm ở đúng một trạm. Mỗi phòng, lượt đặt hay yêu cầu đều bắt buộc có dòng cha,
+  nên luôn đi theo cha về một trạm nào đó.
+- **Không trùng dòng nào.** Mỗi khách sạn chỉ thuộc một vùng, và mỗi dòng con chỉ có một dòng cha.
+- **Ghép lại được bảng gốc.** Ở trạm trung tâm, mỗi bảng bị chia có một **khung nhìn toàn cục** `all_<bảng>`: một bảng ảo ghép dữ liệu của
+  bốn trạm lại. Khung nhìn này phải trùng khớp từng dòng với bảng tương ứng trong CSDL đối chứng.
 
-`make tls-test` (từ máy A tới `phuquoc` ở máy B): 8/8 đạt. Hai kết nối đúng vào được. Sáu kết nối bị từ chối: không mã hoá, gọi bằng IP,
-thiếu chứng chỉ máy khách, chứng chỉ do CA lạ ký, `fdw_reader` thử ghi, và `postgres` đúng mật khẩu nhưng không mã hoá.
-**Chi phí** chỉ nằm ở lúc mở kết nối, vì `postgres_fdw` giữ kết nối suốt phiên. Ở trễ 30 ms, mở một kết nối fdw mất 469 ms nếu không mã hoá + SCRAM,
-và **340 ms** với TLS direct + chứng chỉ: xác thực bằng chứng chỉ bỏ được 2 vòng SASL. Bảng 3 đã đo lại toàn bộ khi bật TLS.
+Cả ba điều kiện đều được kiểm tra bằng máy trên dữ liệu thật (Mục 3).
+
+### 1.5 Khoá chính, khoá ngoại và ràng buộc
+- **Hai trạm không bao giờ cấp trùng mã.** Dữ liệu ban đầu đã có mã duy nhất (nhỏ hơn 10 triệu). Lượt đặt mới ở trạm số *n* lấy mã trong
+  dải riêng của trạm, từ *n* × 10 triệu trở đi (Đà Lạt bắt đầu từ 10 triệu, Đà Nẵng từ 40 triệu). Nhờ vậy các trạm tự cấp mã mà không phải
+  hỏi nhau, và nhìn mã là biết lượt đặt được tạo ở trạm nào. Mã đoàn tour mới chỉ do trạm trung tâm cấp.
+- **Khoá ngoại không bao giờ vượt trạm.** Khoá ngoại là liên kết từ dòng con tới dòng cha, ví dụ lượt đặt → phòng. Vì mỗi dòng con đi theo
+  cha, còn loại phòng và đoàn tour có ở mọi trạm, nên dòng cha luôn nằm cùng trạm với dòng con. Do đó cả 8 khoá ngoại của đề được khai báo
+  ngay tại từng trạm và PostgreSQL tự kiểm tra như trên một CSDL bình thường.
+- **Dữ liệu không thể vào nhầm trạm.** Bảng khách sạn ở mỗi trạm có ràng buộc "vùng phải là vùng của trạm này". Phòng và lượt đặt không có
+  cột vùng, nhưng khoá ngoại chặn thay: ghi một phòng Đà Lạt vào trạm Đà Nẵng sẽ bị từ chối, vì trạm Đà Nẵng không có khách sạn Đà Lạt.
+- **Yêu cầu của khách được lưu hai dạng.** Cột `request` lưu yêu cầu dưới dạng **jsonb** (văn bản có cấu trúc, mỗi loại khách một kiểu), còn
+  các bảng `req_*` lưu cùng thông tin đó dưới dạng bảng thường. Ràng buộc bắt jsonb phải có đủ trường của đúng loại khách, đúng kiểu dữ liệu,
+  đúng giá trị cho phép. Hai dạng luôn được ghi cùng lúc trong một giao dịch, và được kiểm tra là trùng nhau.
+
+### 1.6 Dòng liên vùng
+Một đoàn tour có thể đặt phòng ở nhiều vùng. Lượt đặt của những đoàn như vậy gọi là **dòng liên vùng**. Theo thiết kế, mỗi lượt đặt nằm ở
+trạm của khách sạn, nên phòng của một đoàn rải ra nhiều trạm. Không bảng nào ghi đoàn đi những vùng nào, nên muốn liệt kê phòng của một
+đoàn, **Q3 phải hỏi cả bốn trạm**. Q2, Q4, Q5 cũng hỏi cả bốn trạm, nhưng vì chúng vốn cần số liệu của cả chuỗi, không phải vì dòng liên vùng.
+
+### 1.7 Bảo mật đường truyền
+Đề không yêu cầu bảo mật, nhưng tên và mã số thuế của khách đi giữa hai máy, nên nhóm mã hoá mọi kết nối qua mạng (TLS 1.3, cùng loại mã
+hoá với HTTPS). Nhóm tự lập một **CA**, tức nơi cấp chứng chỉ, cho riêng hệ thống. Mỗi trạm có một chứng chỉ mang tên của nó, ví dụ
+`phuquoc.db.nhom8.internal`. Khi trạm trung tâm kết nối, nó kiểm tra chứng chỉ, nên một máy lạ dù có đúng địa chỉ IP cũng không giả
+được trạm. Ngược lại, trạm trung tâm đăng nhập vào trạm xa bằng chứng chỉ thay cho mật khẩu, với một tài khoản chỉ được đọc. Khoá bí mật
+của mỗi trạm được tạo ngay trên trạm đó và không bao giờ được gửi đi. Toàn bộ việc cấp chứng chỉ chạy tự động khi dựng hệ.
+
+Nhóm kiểm thử 8 trường hợp. Hai kết nối hợp lệ được chấp nhận. Sáu kết nối sai đều bị từ chối: không mã hoá, gọi bằng IP thay vì tên,
+thiếu chứng chỉ, chứng chỉ do CA lạ cấp, tài khoản chỉ đọc thử ghi dữ liệu, và tài khoản quản trị đúng mật khẩu nhưng không mã hoá. Mã hoá
+chỉ tốn thời gian lúc mở kết nối. Ở trễ 30 ms, mở một kết nối mất 469 ms khi không mã hoá và dùng mật khẩu; 382 ms khi mã hoá theo cách
+thông thường và đăng nhập bằng chứng chỉ; và 340 ms khi dùng thêm chế độ TLS trực tiếp (`sslnegotiation=direct`). Mức giảm đến từ hai yếu
+tố: đăng nhập bằng chứng chỉ bớt các lượt trao đổi mật khẩu (469 → 382 ms), còn chế độ TLS trực tiếp bỏ được lượt hỏi "trạm có hỗ trợ mã
+hoá không" trước khi bắt tay TLS (382 → 340 ms). Hệ dùng cấu hình thứ ba, và mọi số đo ở Mục 5 đều đo khi đã bật mã hoá.
 
 ## 2. Sơ đồ triển khai, giao diện và dashboard
 
 <svg viewBox="0 0 900 235" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial" font-size="12">
   <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#555"/></marker></defs>
   <rect x="5" y="5" width="545" height="225" rx="10" fill="#f3f6fb" stroke="#4a6fa5"/>
-  <text x="15" y="24" font-weight="bold" fill="#244a80">MÁY A · macOS · Docker Desktop · IP 192.168.100.218</text>
+  <text x="15" y="24" font-weight="bold" fill="#244a80">MÁY A · Docker · IP 192.168.100.218</text>
   <rect x="20" y="38" width="200" height="48" rx="6" fill="#fff" stroke="#4a6fa5"/>
   <text x="30" y="57" font-weight="bold">dalat :5434</text><text x="30" y="75">mảnh dalat + bản sao</text>
   <rect x="20" y="100" width="200" height="48" rx="6" fill="#fff" stroke="#888"/>
@@ -126,51 +183,70 @@ và **340 ms** với TLS direct + chứng chỉ: xác thực bằng chứng ch�
   <text x="30" y="186" font-weight="bold">Nhập liệu :8501 · Dashboard :8502 (Streamlit + psycopg)</text>
   <text x="30" y="204">kết nối THẲNG từng trạm qua TLS (không qua postgres_fdw), làm mới mỗi 1 s</text>
   <rect x="610" y="5" width="285" height="225" rx="10" fill="#f6f3fb" stroke="#6a4aa5"/>
-  <text x="620" y="24" font-weight="bold" fill="#4a2a80">MÁY B · Windows · Docker Desktop (WSL2)</text>
-  <text x="620" y="41" fill="#4a2a80">IP 192.168.100.198 · firewall mở 5435, 5436</text>
+  <text x="620" y="24" font-weight="bold" fill="#4a2a80">MÁY B · Docker</text>
+  <text x="620" y="41" fill="#4a2a80">IP 192.168.100.198 · mở cổng 5435, 5436</text>
   <rect x="650" y="55" width="220" height="50" rx="6" fill="#fff" stroke="#6a4aa5"/>
   <text x="660" y="76" font-weight="bold">phuquoc :5435</text><text x="660" y="94">mảnh phuquoc + bản sao</text>
   <rect x="650" y="125" width="220" height="50" rx="6" fill="#fff" stroke="#6a4aa5"/>
   <text x="660" y="146" font-weight="bold">danang :5436</text><text x="660" y="164">mảnh danang + bản sao</text>
   <line x1="535" y1="80" x2="648" y2="80" stroke="#c0521e" stroke-width="2" marker-end="url(#a)"/>
   <line x1="535" y1="120" x2="648" y2="148" stroke="#c0521e" stroke-width="2" marker-end="url(#a)"/>
-  <text x="553" y="70" fill="#c0521e" font-size="11">LAN, TLS</text>
+  <text x="553" y="70" fill="#c0521e" font-size="11">mạng, TLS</text>
   <line x1="535" y1="195" x2="648" y2="168" stroke="#2e7d32" stroke-dasharray="4" marker-end="url(#a)"/>
 </svg>
 
-*Hình 1. Sơ đồ triển khai. Mũi tên đỏ: postgres_fdw từ trạm trung tâm qua TLS (có trễ khi bật `make delay-on`); nét đứt xanh: dashboard/nhập liệu đọc-ghi thẳng từng trạm, cũng qua TLS.*
+*Hình 1. Sơ đồ triển khai. Mũi tên đỏ: trạm trung tâm hỏi các trạm khác qua kết nối mã hoá (có thêm trễ khi bật giả lập). Nét đứt xanh: giao diện và dashboard kết nối thẳng tới từng trạm.*
+
+**Cách triển khai.** Hệ được dựng theo các bước sau; tất cả gói trong lệnh `make all` của mỗi máy (Mục 4).
+1. **Mỗi trạm là một máy chủ PostgreSQL 18 riêng**, chạy trong một container Docker với vùng lưu trữ riêng và một cổng riêng (Nha Trang
+   5433, Đà Lạt 5434, Phú Quốc 5435, Đà Nẵng 5436, CSDL đối chứng 5440). Một tệp cấu hình duy nhất ghi trạm nào chạy trên máy nào, với IP và
+   cổng nào. Mỗi máy đọc tệp này và chỉ bật các trạm của mình; máy B mở cổng 5435–5436 để máy A kết nối tới.
+2. **Bốn trạm có cùng cấu trúc bảng** như lược đồ của đề, cộng thêm các ràng buộc riêng của trạm: vùng của khách sạn phải là vùng của trạm,
+   và mã lượt đặt mới phải nằm trong dải của trạm (Mục 1.5).
+3. **Cấp chứng chỉ** cho năm CSDL để mọi kết nối giữa các máy được mã hoá (Mục 1.7).
+4. **Nạp dữ liệu**: mỗi dòng được xếp về đúng trạm của nó rồi nạp vào trạm đó (Mục 3).
+5. **Nối các trạm vào trạm trung tâm.** Ở trạm Nha Trang, nhóm dùng **postgres_fdw**, một thành phần có sẵn của PostgreSQL cho phép đọc bảng
+   ở máy chủ khác như bảng của chính mình. Với mỗi trạm xa, trạm trung tâm khai báo địa chỉ và cách đăng nhập, rồi tạo các **bảng ngoài**,
+   tức bảng "ảo" mà dữ liệu thật nằm ở trạm xa. Sau đó, với mỗi bảng bị chia, trạm trung tâm tạo khung nhìn `all_<bảng>` ghép bảng của
+   chính nó với ba bảng ngoài. Q4 chạy thẳng trên khung nhìn `all_booking` nên viết giống hệt như trên CSDL tập trung; các điều kiện lọc
+   được PostgreSQL gửi xuống từng trạm. Q2, Q3 và Q5 thì được viết tay thành hợp của bốn truy vấn con, mỗi truy vấn hỏi riêng một trạm, để
+   mỗi trạm tự nối bảng và tự tính rồi chỉ gửi kết quả về (lý do ở N2).
+6. **Giả lập khoảng cách địa lý.** Khi cần đo (D6), công cụ `tc netem` của Linux làm chậm thêm 30 ms mọi gói tin từ trạm trung tâm tới ba
+   trạm còn lại, kể cả trạm Đà Lạt nằm cùng máy. Chỉ Q1, chạy ngay tại trạm Đà Lạt, và liên lạc với CSDL đối chứng là không bị ảnh hưởng.
+7. **Giao diện nhập liệu và dashboard** chạy ở máy A và kết nối thẳng tới từng trạm, không đi qua trạm trung tâm.
+
+Nếu đổi mạng (ví dụ chuyển sang điểm phát Wi-Fi điện thoại khi bảo vệ), chỉ cần sửa hai địa chỉ IP trong tệp cấu hình rồi chạy lại bước 5;
+chứng chỉ gắn với tên trạm chứ không gắn với IP, nên không phải cấp lại.
 
 ![Dashboard](img/dashboard.png)
-*Hình 2. Dashboard: mỗi trạm một ô (máy, IP, trạng thái, số dòng từng bảng), bên dưới là bảng tổng hợp so với CSDL đối chứng và nhật ký sự kiện (cắt bớt).*
+*Hình 2. Dashboard: mỗi trạm một ô, cho biết trạm nằm ở máy nào, địa chỉ, trạng thái (xanh: đang chạy) và số dòng từng bảng. Phía dưới là bảng so sánh với CSDL đối chứng (ảnh cắt bớt).*
 
 <div class="two"><img src="img/entry.png"><img src="img/dashboard_d8_down.png"></div>
 
-*Hình 3. Trái: giao diện nhập liệu — chọn vùng thì biết trạm đích; form đổi theo `guest_type`; tự nhận biết dòng liên vùng (đoàn TG0001 đã có phòng ở 3 vùng). Phải: D8 — trạm `danang` (máy B) bị tắt, ô chuyển đỏ.*
+*Hình 3. Trái: giao diện nhập lượt đặt. Chọn vùng là biết dữ liệu sẽ ghi vào trạm nào; giao diện báo đoàn TG0001 đã có phòng ở ba vùng, tức lượt đặt mới là dòng liên vùng. Phải: khi tắt trạm Đà Nẵng ở máy B (thao tác D8), ô của trạm chuyển đỏ.*
 
-**Giao diện nhập liệu** (`app/entry.py`) có ba chức năng:
-- *Thêm lượt đặt:* ghi `booking` (có jsonb) và dòng `req_*` tương ứng trong **một giao dịch**, kết nối thẳng tới trạm của vùng khách sạn,
-  rồi báo `booking_id`, trạm, máy, IP. Cả jsonb và bản quan hệ được sinh từ cùng một dict, nên luôn nhất quán.
-- *Thêm ngẫu nhiên N dòng:* phân bổ theo tỉ lệ vùng của đề.
-- *Thêm đoàn tour:* ghi vào 4 bản sao bằng 2PC (`PREPARE TRANSACTION` → `COMMIT PREPARED`).
-
-Khi trạm đích mất kết nối, giao diện báo lỗi và **không** ghi sang trạm khác. **Dashboard** (`app/dash.py`) hỏi song song 5 nút mỗi giây
-(timeout 1 s), sinh sự kiện khi số dòng thay đổi hoặc khi trạm mất/kết nối lại.
+**Giao diện nhập liệu** có ba chức năng. Chức năng thứ nhất thêm một lượt đặt: giao diện ghi thẳng vào trạm của vùng khách sạn, ghi lượt đặt
+và yêu cầu của khách trong cùng một giao dịch, rồi báo lại mã lượt đặt và trạm đã ghi. Chức năng thứ hai thêm N lượt đặt ngẫu nhiên, chia
+theo tỉ lệ vùng của đề. Chức năng thứ ba thêm đoàn tour: đoàn mới phải có mặt ở cả bốn trạm hoặc không ở trạm nào, nên được ghi bằng
+**giao thức hai pha** (2PC). Ở pha một, cả bốn trạm chuẩn bị và hứa sẽ ghi được; chỉ khi cả bốn đồng ý, pha hai mới ghi thật. Nếu trạm đích
+mất kết nối, giao diện báo lỗi chứ không ghi sang trạm khác. **Dashboard** hỏi cả năm CSDL mỗi giây và ghi lại sự kiện khi số dòng thay đổi
+hoặc khi một trạm mất hay có lại kết nối.
 
 ## 3. Nạp dữ liệu và đối chiếu với summary.json
 
-`make data` chạy bộ sinh của giảng viên (không sửa; sha1 `528a57d7…`) cho hai cỡ `mini` và `lab`. `make load` thực hiện:
-1. nạp toàn bộ CSV vào `ref` (lược đồ tập trung `schema_central.sql`) bằng `COPY … (FORMAT csv, HEADER true)`;
-2. `tools/split.py` gán mỗi dòng về một trạm: `hotel` theo `region`, rồi `room → booking → req_*` theo chuỗi khoá ngoại;
-3. nạp từng mảnh vào trạm của nó, cả trạm ở máy B (qua LAN);
-4. đối chiếu với `summary.json`.
+Dữ liệu được tạo bằng bộ sinh của giảng viên, giữ nguyên mã và seed. Việc nạp gồm bốn bước:
+1. nạp toàn bộ dữ liệu vào CSDL đối chứng `ref`, có cấu trúc giống hệt lược đồ tập trung của đề;
+2. xếp mỗi dòng về một trạm: khách sạn theo vùng, sau đó phòng, lượt đặt, yêu cầu theo dòng cha của chúng;
+3. nạp từng phần vào trạm của nó, kể cả hai trạm ở máy B;
+4. so số dòng với tệp `summary.json` do bộ sinh xuất ra.
 
-**Bảng 1. Số dòng mỗi mảnh (N1), cỡ lab** — `results/n1_fragments.csv`
+**Bảng 2.** Số dòng ở mỗi trạm (N1), cỡ dữ liệu `lab`.
 
-| Bảng | dalat | nhatrang | phuquoc | danang | Σ / bản sao | summary.json |
+| Bảng | Đà Lạt | Nha Trang | Phú Quốc | Đà Nẵng | Tổng (bảng chép: 1 bản) | summary.json |
 |---|---:|---:|---:|---:|---:|---:|
-| room_type *(sao chép)* | 15 | 15 | 15 | 15 | 15 | 15 ✓ |
-| tour_group *(sao chép)* | 800 | 800 | 800 | 800 | 800 | 800 ✓ |
-| hotel | 13 | 16 | 14 | 17 | 60 | 60 ✓ (by_region khớp) |
+| room_type *(chép đủ)* | 15 | 15 | 15 | 15 | 15 | 15 ✓ |
+| tour_group *(chép đủ)* | 800 | 800 | 800 | 800 | 800 | 800 ✓ |
+| hotel | 13 | 16 | 14 | 17 | 60 | 60 ✓ |
 | room | 1.193 | 1.662 | 1.387 | 1.758 | 6.000 | 6.000 ✓ |
 | booking | 16.275 | 20.091 | 19.755 | 23.879 | 80.000 | 80.000 ✓ |
 | req_tour | 7.537 | 8.621 | 9.285 | 10.681 | 36.124 | 36.124 ✓ |
@@ -178,182 +254,179 @@ Khi trạm đích mất kết nối, giao diện báo lỗi và **không** ghi s
 | req_family | 3.240 | 4.178 | 3.760 | 4.765 | 15.943 | 15.943 ✓ |
 | req_family_child | 4.833 | 6.144 | 5.740 | 7.239 | 23.956 | 23.956 ✓ |
 
-Số dòng liên vùng tính lại từ các mảnh là 5.144 (tỉ lệ 0,0643, gồm 115 đoàn), **khớp** `summary.json.cross_site`.
-Số dòng từng loại jsonb (tour 36.124 / business 27.933 / family 15.943) khớp `jsonb_types`.
+Đếm lại từ các trạm có 5.144 dòng liên vùng (6,43%, thuộc 115 đoàn), **khớp** với `summary.json`. Số lượt đặt theo từng loại khách
+(tour 36.124, công tác 27.933, gia đình 15.943) cũng khớp.
 
-`make check` (`results/check.txt`) gồm 6 nhóm, mọi truy vấn kiểm tra đều trả về 0:
-- (A) ba quy tắc cho 7 bảng bị chia (28 phép);
-- (B) 8 bản sao giống `ref`;
-- (C) đúng mảnh ở từng trạm: vị từ, dòng mồ côi, dải id, không có ràng buộc NOT VALID (28 phép);
-- (D) 8 khoá ngoại và khoá chính của bảng sao chép trên toàn hệ (9 phép);
-- (E) jsonb ⇄ bản quan hệ, 4 loại × 4 trạm;
-- (F) số dòng gốc khớp `summary.json` (14 phép).
+Sau khi nạp, một lệnh kiểm tra chạy 103 phép thử trên dữ liệu thật. Mỗi phép thử là một truy vấn tìm dữ liệu sai; nếu kết quả rỗng thì phép
+thử đạt.
 
-Tổng cộng 103 phép, kết luận: **ĐẠT**, chạy trong khoảng 9 giây (qua TLS, cả trạm ở máy B). Sau khi nhập thêm dòng (D7), `make check` vẫn đạt, vì dòng mới cũng được chép sang `ref`
-và nhóm F chỉ đếm dòng có id của bộ sinh.
+**Bảng 3.** Các nhóm kiểm tra.
+
+| Nhóm | Kiểm tra điều gì | Số phép | Kết quả |
+|---|---|---:|---|
+| A | Với 7 bảng bị chia: không mất dòng, không trùng dòng, ghép lại đúng bảng gốc | 28 | đạt |
+| B | 2 bảng chép đủ ở cả 4 trạm giống CSDL đối chứng | 8 | đạt |
+| C | Mỗi trạm chỉ chứa dữ liệu của vùng mình; không có dòng mồ côi; mã mới nằm đúng dải của trạm | 28 | đạt |
+| D | 8 khoá ngoại và khoá chính đúng trên toàn hệ | 9 | đạt |
+| E | Dạng jsonb và dạng bảng của yêu cầu khách trùng nhau (4 loại × 4 trạm) | 16 | đạt |
+| F | Số dòng ban đầu khớp `summary.json` | 14 | đạt |
+| | **Tổng** | **103** | **đạt cả**, khoảng 9 giây |
+
+Sau khi nhập thêm dữ liệu từ giao diện (D7), lệnh kiểm tra vẫn đạt.
 
 ## 4. Cách chạy
 
+Mỗi máy cần Docker, Python 3.11 trở lên và `make`. Máy B mở cổng 5435–5436 cho máy A kết nối. Trước khi chạy, ghi IP của hai máy vào tệp
+cấu hình `deploy.toml`.
+
 ```bash
-# Máy B (Windows: Docker Desktop, Python ≥ 3.11, GNU make; firewall mở 5435-5436)
-make all MACHINE=B
-# Máy A (macOS) — sửa IP hai máy trong deploy.toml trước
-make all            # venv → build → up A → secure (TLS, 5 nút) → data → load → link → check → bench → mở :8501, :8502
-make tls-status / make tls-test     # chứng chỉ, phiên fdw / 8 phép thử TLS
-make q EXPLAIN=1    # Q1–Q5 cho demo (D3–D5) · make delay-on / delay-off (D6)
-make stop-site SITE=phuquoc / make start-site SITE=phuquoc   # D8, chạy trên máy B
-python tools/onebox.py   # thử cả hệ trên MỘT máy, không cần make (deploy.local.toml)
+make all MACHINE=B   # trên máy B: bật trạm Phú Quốc và Đà Nẵng
+make all             # trên máy A: bật các trạm còn lại, cấp chứng chỉ, sinh và nạp dữ liệu,
+                     #   nối các trạm, kiểm tra, đo, mở giao diện (cổng 8501) và dashboard (8502)
+make q EXPLAIN=1     # chạy Q1–Q5 và in kế hoạch thực thi
+make delay-on        # thêm trễ 30 ms (D6); make delay-off để tắt
+make stop-site SITE=danang ; make start-site SITE=danang   # tắt rồi bật lại một trạm ở máy B (D8)
 ```
 
-Mọi công thức trong Makefile chỉ gọi `docker` và `python`, nên chạy được trên cả macOS lẫn Windows. Máy B không cần venv, không phải
-kết nối ngược về máy A, và không phải làm gì cho TLS (máy A cấp chứng chỉ; khoá vẫn sinh trong container ở máy B). Từ máy sạch, `make all` trên hai máy thật mất **4 phút 35 giây**, gồm cả cấp chứng chỉ (12 s) và đo (`results/make_all_2machines.log`). Nếu không chạy được `tc` trong container,
-`DELAY_MODE=proxy make delay-on` sẽ dùng proxy TCP (`tools/latency_proxy.py`) để thêm trễ. Đo lại trên 2 máy: Q2 430 ms, Q3 402 ms, gần với số đo bằng `tc` ở Bảng 3. Chi tiết cài đặt và xử lý sự cố ở `README.md` và `IMPLEMENT.md`.
+Máy B không phải làm gì thêm cho phần mã hoá: máy A cấp chứng chỉ từ xa, còn khoá bí mật vẫn được tạo ngay trên máy B. Từ hai máy chưa có
+gì, `make all` mất **4 phút 35 giây**.
 
 ## 5. Kết quả và giải thích N1–N5
 
-**Cách đo.** Mỗi truy vấn chạy 5 lần trong một phiên `psql` **ngay trong container** của trạm thực hiện (`\timing`, qua unix socket,
-nên không lẫn độ trễ client ↔ trạm). Bỏ lần đầu (gồm chi phí mở kết nối fdw), lấy trung vị 4 lần còn lại. Mỗi biến thể được so khớp
-từng dòng với bản chạy trên `ref`: **tất cả đều khớp**.
+**Cách đo.** Mỗi truy vấn chạy 5 lần ngay trên máy chủ của trạm thực hiện. Lần đầu bị bỏ, vì có thêm thời gian mở kết nối; con số báo cáo là
+trung vị của 4 lần còn lại. Kết quả mỗi lần chạy đều được so từng dòng với CSDL đối chứng, và **tất cả đều khớp**. Để giả lập hai trạm ở xa
+nhau, nhóm dùng công cụ `tc netem` của Linux làm chậm mọi gói tin từ trạm trung tâm tới các trạm khác thêm 30 ms. Bản thân mạng giữa hai
+máy đã có độ trễ khoảng 7–9 ms cho mỗi lượt đi-về.
 
-Trễ 30 ms được giả lập bằng `tc netem` trên container trung tâm, chỉ áp cho gói có đích là trạm xa. Kết quả lưu ở `results/results.csv`
-và `results/explain/`. **Mọi số đo dưới đây đo khi TLS bật** (E3, mặc định; `make all` ngày 2026-11-17).
+### N1 — Số dòng ở mỗi trạm
+Số dòng ở Bảng 2 được giải thích từ cách bộ sinh tạo dữ liệu:
+- **Khách sạn (13 / 16 / 14 / 17).** Bộ sinh chia 60 khách sạn theo tỉ lệ vùng 20 / 26 / 24 / 30%. Mỗi vùng được trước 2 khách sạn; 52 khách
+  sạn còn lại chia theo tỉ lệ rồi làm tròn xuống được 10 / 13 / 12 / 15; 2 khách sạn còn dư cấp cho Đà Lạt và Nha Trang.
+- **Phòng.** Số phòng của mỗi khách sạn được chọn ngẫu nhiên, nên tỉ lệ phòng theo vùng (19,9 / 27,7 / 23,1 / 29,3%) hơi lệch so với tỉ lệ
+  khách sạn.
+- **Lượt đặt.** Khách lẻ (55%) chọn vùng theo tỉ lệ vùng; khách đoàn chọn ngẫu nhiên một trong các vùng của đoàn. Kết quả là
+  20,3 / 25,1 / 24,7 / 29,8%.
+- **Yêu cầu của khách** đi theo lượt đặt, nên phản ánh cơ cấu khách của từng vùng.
 
-> *Môi trường đo:* máy A (macOS, 192.168.100.218) và máy B (Windows, 192.168.100.198) nối cùng mạng Wi-Fi; Docker Desktop trên cả hai.
-> Trễ giả lập cộng thêm vào RTT thật của Wi-Fi (khoảng 7–9 ms giữa hai máy), nên trạm ở máy B chậm hơn trạm dalat cùng máy.
+### N2 — Mỗi truy vấn phải hỏi những trạm nào
+Đọc kế hoạch thực thi (lệnh `EXPLAIN`) cho biết truy vấn đọc dữ liệu ở đâu và trạm xa được giao làm gì.
 
-### N1 — Số dòng mỗi mảnh (Bảng 1)
-- **hotel:** bộ sinh chia 60 khách sạn theo `WEIGHTS` = 0,20/0,26/0,24/0,30 bằng `split_counts(60, W, 2)`. Mỗi vùng được trước 2;
-  52 khách sạn còn lại chia tỉ lệ rồi làm tròn xuống (10/13/12/15); 2 khách sạn dư cấp lần lượt cho dalat và nhatrang → **13/16/14/17**.
-- **room:** 6.000 phòng chia theo trọng số ngẫu nhiên U(0,5; 1,5) của từng khách sạn, nên tỉ lệ vùng (19,9/27,7/23,1/29,3%) lệch nhẹ
-  khỏi tỉ lệ số khách sạn.
-- **booking:** khách lẻ (55%) chọn vùng theo `WEIGHTS`; khách đoàn chọn ngẫu nhiên một trong các vùng của đoàn → 20,3/25,1/24,7/29,8%.
-- **`req_*`:** đi theo `booking`, nên tỉ lệ từng loại khách ở mỗi trạm phản ánh cơ cấu loại khách của vùng đó.
+**Bảng 4.** Phạm vi và cách thực hiện của từng truy vấn.
 
-Tổng các mảnh bằng đúng bảng đối chứng; mỗi bảng sao chép có 4 bản giống hệt.
-
-### N2 — Số trạm mỗi truy vấn chạm (đọc EXPLAIN VERBOSE)
-
-**Bảng 2.** FS = số nút Foreign Scan. Trạm chạm = trạm trung tâm (cục bộ) + trạm xa.
-
-| Truy vấn (chạy ở) | Trạm chạm | FS | Phần được đẩy xuống trạm xa (dòng `Remote SQL`) |
+| Truy vấn | Chạy ở | Số trạm hỏi | Trạm xa làm gì và gửi về gì |
 |---|---|---|---|
-| Q1 (dalat) | 1 (dalat) | 0 | — chỉ Seq/Index Scan trên mảnh cục bộ |
-| Q2 (trung tâm) | 4 | 3 async | `SELECT region, room_type_code, sum(nights*rate), count(*) FROM booking_detail WHERE check_in >= '2025-01-01' AND check_in < '2026-01-01' GROUP BY 1,2` → mỗi trạm trả 15 dòng |
-| Q3 (trung tâm) | 4 | 3 async | JOIN `booking⋈room⋈hotel` + `tour_group_id = 1` → trả 0/14/22/10 dòng |
-| Q4 (trung tâm) | 4 | 3 async | `WHERE request @> '{"airport_pickup":true}' AND request @? '$.children_ages[*] ? (@ < 6)' AND guest_type='family'` |
-| Q5 (trung tâm) | 4 | 3 async | `WHERE airport_pickup AND youngest_child_age < 6` trên khung nhìn `family_request_detail` |
-| Q2 nối 3 bảng gốc | 4 | 6 | chỉ đẩy `room⋈hotel`; `booking` (WHERE) bị kéo về: 11–16 nghìn dòng/trạm |
-| Q2/Q3 trên `all_*` | 4 | 9 | chỉ đẩy WHERE từng bảng; JOIN và GROUP BY làm ở trung tâm |
+| Q1 | Đà Lạt | 1 (chính nó) | không hỏi trạm nào khác |
+| Q2 | trung tâm | 4 | mỗi trạm tự tính doanh thu của vùng mình, gửi về 15 dòng tổng (một dòng mỗi loại phòng) |
+| Q3 | trung tâm | 4 | mỗi trạm tự tìm phòng của đoàn; gửi về 0 / 14 / 22 / 10 dòng |
+| Q4 | trung tâm | 4 | mỗi trạm tự lọc khách gia đình theo jsonb, chỉ gửi về các dòng thoả điều kiện |
+| Q5 | trung tâm | 4 | như Q4 nhưng lọc trên bảng yêu cầu dạng thường |
 
-Hai điểm rút ra từ Bảng 2:
-- Ở Q2, nếu nối thẳng 3 bảng gốc, bộ tối ưu (không bật `use_remote_estimate`) chọn kéo `booking` về rồi tự nối, nên các nhánh không chạy
-  song song được. Bật `use_remote_estimate` thì đẩy được trọn phép tính, nhưng phải gửi nhiều lệnh `EXPLAIN` sang trạm xa lúc lập kế hoạch.
-  Nhóm giải quyết bằng khung nhìn cục bộ `booking_detail` (đề cho phép thêm khung nhìn): mỗi phần của Q2 chỉ còn là một bảng ngoài,
-  nên postgres_fdw đẩy được nguyên `WHERE + GROUP BY` xuống (`Relations: Aggregate on (s_dalat.booking_detail)`).
-  Đây là gộp hai giai đoạn của Mã 3.2.
-- Toán tử jsonb `@>`, `@?` là toán tử có sẵn nên được đẩy xuống. Theo Lưu ý ở Mục 3.5, hàm do người dùng tự viết sẽ không được đẩy.
+Điểm quan trọng là trạm xa phải **tự tính rồi chỉ gửi kết quả**, thay vì gửi dữ liệu thô về trạm trung tâm. Với Q2, nếu viết thẳng phép nối
+ba bảng lượt đặt, phòng, khách sạn, PostgreSQL chọn kéo cả 11–16 nghìn lượt đặt của mỗi trạm về rồi mới tính. Nhóm khắc phục bằng cách tạo
+sẵn ở mỗi trạm một khung nhìn đã nối ba bảng này. Khi đó trạm trung tâm chỉ cần nói "tính tổng theo vùng và loại phòng", và mỗi trạm gửi về
+đúng 15 dòng. Các phép lọc jsonb của Q4 cũng được giao cho trạm xa, vì chúng là toán tử có sẵn của PostgreSQL.
 
-### N3 — Thời gian Q1–Q5 không trễ và trễ 30 ms
+### N3 — Thời gian chạy khi không trễ và khi trễ 30 ms
+**Mô hình.** Mỗi khi trạm trung tâm gửi một lệnh cho trạm xa, nó phải chờ một **lượt đi-về** (gói tin đi tới trạm xa và trả lời quay về).
+Nếu thêm 30 ms vào mỗi lượt, thời gian truy vấn tăng thêm khoảng *số lượt đi-về × 30 ms* (công thức 1.1 của giáo trình). Với mỗi trạm xa,
+postgres_fdw gửi 5 lệnh: mở giao dịch, mở con trỏ đọc, lấy dữ liệu, đóng con trỏ, kết thúc giao dịch. Với ba trạm xa, lệnh lấy dữ liệu và
+lệnh kết thúc được gửi song song cho cả ba, còn các lệnh khác gửi lần lượt từng trạm: 3 + 3 + 1 + 3 + 1 = **11 lượt**.
 
-**Bảng 3.** Trung vị (ms); "RTT đo" = (T₆₀ − T₃₀)/30, đo thêm ở trễ 60 ms (`tools/rtt_slope.py` → `results/rtt_slope.txt`).
+**Bảng 5.** Thời gian chạy (trung vị, ms). Cột "số lượt đo được" tính từ mức tăng thời gian khi tăng trễ từ 30 lên 60 ms.
 
-| Truy vấn / biến thể | 0 ms | 30 ms | RTT đo | Mô hình số vòng khứ hồi |
+| Truy vấn | Không trễ | Trễ 30 ms | Số lượt đo được | Giải thích |
 |---|---:|---:|---:|---|
-| Q1 tại dalat | 0,60 | **0,55** | 0 | 0 — không có Foreign Scan |
-| Lượt hỏi tối thiểu tới 1 trạm xa | 0,30 (A) · 42 – 44 (B) | 165 (A) · 201 – 214 (B) | 4,9 – 5,3 | 5: START, DECLARE, FETCH, CLOSE, COMMIT (Hình 1.2) |
-| **Q2** (async + parallel_commit) | 75 | **459** | 10,9 | 3 START + 3 DECLARE (tuần tự) + 1 FETCH (song song) + 3 CLOSE + 1 COMMIT (song song) = 11 |
-| Q2 tắt async_capable | 171 | 536 | 12,3 | FETCH tuần tự: 3·(START+DECLARE+FETCH+CLOSE) + 1 = 13 |
-| Q2 tắt parallel_commit | 102 | 515 | 13,0 | 11 + 2 COMMIT tuần tự = 13 |
-| Q2 nối 3 bảng gốc | 295 | 1.221 | — | 6 FS tuần tự, kéo về khoảng 40 nghìn dòng |
-| Q2 + use_remote_estimate | 409 | 2.682 | — | thực thi 272 ms, nhưng **lập kế hoạch 2.324 ms** (EXPLAIN gửi sang trạm xa) |
-| Q2 trên all_*, fetch_size 100 | 1.847 | 8.521 | — | khoảng 450 lần FETCH × 100 dòng, chồng lấp một phần giữa 3 trạm (giống Bảng 1.2) |
-| **Q3** (đẩy JOIN xuống) | 91 | **433** | 10,7 | như Q2 ≈ 11 |
-| **Q4** jsonb | 77 | **443** | 15,4 | ≈ 11 + thời gian truyền 3.413 dòng qua Wi-Fi (tăng theo RTT vì cửa sổ TCP) |
-| **Q5** quan hệ | 85 | **433** | 15,6 | như Q4 |
-
-So với lần đo **không TLS** trên cùng hai máy (2026-11-15): Q2 436 → 459 ms, Q3 423 → 433, Q4 449 → 443, Q5 438 → 433 ms (trễ 30 ms).
-Chênh lệch ±5%, cả hai chiều, nằm trong biên dao động của Wi-Fi. Số vòng khứ hồi của Q2, Q3 không đổi (11,0 → 10,9; 11,5 → 10,7),
-vì TLS chỉ thêm vòng lúc **mở** kết nối, mà lần chạy đầu (có mở kết nối) đã bị bỏ theo quy tắc đo.
+| Q1 tại Đà Lạt | 0,60 | **0,55** | 0 | không đi qua mạng |
+| Một câu hỏi đơn giản tới 1 trạm xa | 0,3 (cùng máy) · 42–44 (máy B) | 165 – 214 | 5 | đúng 5 lệnh như mô hình |
+| **Q2** | 75 | **459** | 10,9 | 11 lượt như mô hình |
+| **Q3** | 91 | **433** | 10,7 | như Q2 |
+| **Q4** (lọc trên jsonb) | 77 | **443** | 15,4 | 11 lượt, cộng thời gian gửi về 3.413 dòng |
+| **Q5** (lọc trên bảng thường) | 85 | **433** | 15,6 | như Q4 |
 
 Giải thích:
-- **Q1 gần như không đổi** vì chạy trọn tại trạm dalat, không có gói nào đi qua đường bị trễ.
-- **Q2, Q3 tăng khoảng 340–385 ms**, tức khoảng 11 vòng × 30 ms. Ở đây số hạng (số vòng khứ hồi) × RTT lấn át hoàn toàn thời gian xử lý (vài ms).
-- **Mức tăng theo số trạm xa.** Mỗi trạm xa thêm 5 lệnh. `async_capable` chỉ cho FETCH chạy chồng nhau, còn START, DECLARE, CLOSE vẫn đi
-  tuần tự từng trạm, nên thời gian vẫn tăng khoảng 3 vòng cho mỗi trạm xa thêm vào. `parallel_commit` gộp 3 lệnh COMMIT thành một vòng.
-- **Lượng dữ liệu cũng quan trọng.** Kéo dữ liệu thô về (nối bảng gốc, `fetch_size` 100) tốn hàng chục đến hàng trăm vòng.
-- **Trạm cùng máy so với trạm ở máy B:** khi không có trễ, một lượt hỏi tới dalat mất 0,30 ms (qua mạng Docker nội bộ), tới phuquoc/danang
-  mất 42–44 ms, tức 5 vòng × RTT Wi-Fi khoảng 8–9 ms. Vì vậy ngay cả khi tắt trễ giả lập, Q2–Q5 đã mất 75–91 ms. Nói cách khác, mạng
-  thật đã là "trễ" đáng kể. Trễ 30 ms cộng thêm đều cho cả ba trạm xa, nên số vòng đo được (≈ 11) không phụ thuộc trạm nằm ở máy nào.
+- **Q1 gần như không đổi**, vì chỉ đọc dữ liệu của trạm Đà Lạt; không có gói tin nào đi qua đường bị làm chậm.
+- **Q2 và Q3 tăng khoảng 340–385 ms**, tức khoảng 11 lượt × 30 ms, đúng như mô hình. Thời gian tính toán thật chỉ vài ms; gần như toàn bộ
+  thời gian là chờ mạng.
+- **Ngay cả khi không thêm trễ, Q2–Q5 đã mất 75–91 ms**, vì mạng thật giữa hai máy tốn khoảng 8–9 ms mỗi lượt đi-về: hỏi một trạm cùng máy mất
+  0,3 ms, còn hỏi một trạm ở máy B mất 42–44 ms (5 lượt × 8–9 ms).
+- **Q4 và Q5 có số lượt đo được lớn hơn** (khoảng 15), vì chúng gửi về hàng nghìn dòng, và thời gian truyền lượng dữ liệu đó cũng tăng khi mạng chậm.
+
+**Nếu cấu hình khác thì sao.** Nhóm đo thêm Q2 với các cách làm kém hơn để thấy tác dụng của từng lựa chọn (trễ 30 ms):
+- tắt chế độ hỏi song song các trạm: 536 ms (13 lượt);
+- tắt chế độ kết thúc giao dịch song song: 515 ms (13 lượt);
+- nối thẳng ba bảng, kéo dữ liệu thô về: 1.221 ms;
+- để PostgreSQL tự hỏi trạm xa ước lượng chi phí: 2.682 ms, trong đó riêng việc lập kế hoạch mất 2.324 ms;
+- đọc qua khung nhìn toàn cục, mỗi lần chỉ lấy 100 dòng: 8.521 ms, vì phải lấy khoảng 450 lần.
+
+Mỗi lượt đi-về thừa đều phải trả giá, nên số lượt mới là yếu tố quyết định, không phải lượng tính toán.
+
+Mã hoá không làm thay đổi kết luận. Lần đo trước khi bật mã hoá cho Q2 436 ms, Q3 423 ms, Q4 449 ms và Q5 438 ms. Mức chênh khoảng ±5% theo
+cả hai chiều, tức chỉ là dao động của mạng, và số lượt đi-về giữ nguyên.
 
 ### N4 — Tỉ lệ dòng liên vùng
-- **Số liệu:** 5.144 / 80.000 = **6,43%** lượt đặt thuộc 115 đoàn có phòng ở ≥ 2 vùng (14% số đoàn). Đoàn 1 có 46 phòng: nhatrang 14,
-  phuquoc 22, danang 10.
-- **Vì sao Q3 phải qua mạng:** booking được đặt ở trạm của khách sạn, nên phòng của đoàn nằm ở 3 trạm. Vì không biết trước đoàn đi đâu,
-  Q3 hỏi cả 4 trạm (trạm dalat trả 0 dòng nhưng vẫn tốn khoảng 3 vòng).
-- **Kiểm chứng:** chạy cùng câu Q3 cho đoàn 3, đoàn này chỉ đi một vùng (45 phòng, tất cả ở danang). Kết quả là 84 ms / **431 ms**
-  (0 / 30 ms), ngang đoàn 1 đi ba vùng (91 / **433 ms**; biến thể `single_region_group` trong `results/results.csv`). Chi phí của Q3 phụ thuộc vào số trạm phải hỏi,
-  không phụ thuộc vào số vùng đoàn thực sự đi.
-- **Dự đoán khi tỉ lệ tăng lên 30%:** khoảng 2/3 số đoàn sẽ đi nhiều vùng.
-  - Với thiết kế này, **mỗi lần chạy Q3 vẫn tốn khoảng 11 vòng khứ hồi**, vì đã hỏi đủ 4 trạm. Số dòng một đoàn chỉ dời từ trạm này sang trạm
-    khác (trung bình khoảng 45 phòng/đoàn), không đáng kể so với một lần FETCH, nên thời gian Q3 gần như không đổi (khoảng 430 ms ở trễ 30 ms).
-  - Q1, Q2, Q4, Q5 hoàn toàn không đổi, vì dòng liên vùng vẫn nằm đúng trạm của khách sạn.
-  - Ngược lại, nếu đã chọn chia `booking` theo đoàn, 30% lượt đặt sẽ nằm khác vùng khách sạn và Q1, Q2 sẽ phải qua mạng.
-    Tỉ lệ liên vùng càng cao thì phương án đã chọn càng tỏ ra hợp lý.
+- **Số liệu.** 5.144 trên 80.000 lượt đặt (**6,43%**) là dòng liên vùng, thuộc 115 đoàn (14% số đoàn). Ví dụ đoàn 1 có 46 phòng: 14 ở Nha
+  Trang, 22 ở Phú Quốc, 10 ở Đà Nẵng.
+- **Vì sao Q3 phải đi qua mạng.** Phòng của đoàn 1 nằm ở ba trạm. Vì không biết trước đoàn đi đâu, Q3 phải hỏi cả bốn trạm; trạm Đà Lạt
+  trả về 0 dòng nhưng vẫn tốn khoảng 3 lượt đi-về.
+- **Kiểm chứng.** Nhóm chạy Q3 cho đoàn 3, một đoàn chỉ có phòng ở Đà Nẵng. Kết quả là 431 ms ở trễ 30 ms, gần bằng đoàn 1 đi ba vùng
+  (433 ms). Vậy thời gian Q3 phụ thuộc số trạm phải hỏi, không phụ thuộc số vùng đoàn thật sự đi.
+- **Nếu tỉ lệ tăng lên 30%.** Q3 vẫn hỏi cả bốn trạm như cũ, nên thời gian gần như không đổi (khoảng 430 ms ở trễ 30 ms). Q1, Q2, Q4, Q5 hoàn
+  toàn không đổi, vì lượt đặt vẫn nằm ở trạm của khách sạn. Ngược lại, nếu đã chọn chia lượt đặt theo đoàn, 30% lượt đặt sẽ nằm khác trạm
+  với khách sạn và Q1, Q2 sẽ phải đi qua mạng. Tỉ lệ liên vùng càng cao, cách chia đã chọn càng có lợi.
 
-### N5 — Dung lượng jsonb so với bản quan hệ, có/không GIN
+### N5 — Dung lượng jsonb so với bảng thường
+Yêu cầu của khách được lưu hai cách: dạng jsonb trong cột `booking.request`, và dạng bảng thường trong 4 bảng `req_*`. Số đo trên CSDL đối
+chứng (80.000 lượt đặt):
 
-Đo trên CSDL đối chứng (toàn bộ 80.000 lượt đặt), `results/n5_storage.csv`:
+**Bảng 6.** Dung lượng và thời gian truy vấn theo cách lưu.
 
-| | Dung lượng | Ghi chú |
+| Cách lưu | Dung lượng | Thời gian |
 |---|---:|---|
-| `booking.request` (jsonb) | **6,17 MB** | trung bình 77 B/lượt đặt: tour 66 B, business 86 B, family 87 B |
-| 4 bảng `req_*`, chỉ phần dữ liệu | **4,96 MB** | 103.956 dòng; 36–68 B/dòng |
-| 4 bảng `req_*` + chỉ mục PK | 7,52 MB | PK cần cho phép nối của Q5 |
-| GIN `jsonb_path_ops` | 2,18 MB | Q4 trên ref: 5,3 ms → **2,5 ms** |
-| GIN `jsonb_ops` (mặc định) | 2,92 MB | Q4: 3,0 ms |
-| Q5 trên ref (bản quan hệ) | — | 4,8 ms |
+| jsonb | **6,17 MB** (trung bình 77 byte mỗi lượt đặt) | Q4 không chỉ mục: 5,3 ms |
+| 4 bảng thường, chỉ dữ liệu | **4,96 MB** (103.956 dòng) | — |
+| 4 bảng thường kèm chỉ mục khoá chính | 7,52 MB | Q5: 4,8 ms |
+| chỉ mục GIN loại `jsonb_path_ops` | 2,18 MB | Q4: **2,5 ms** |
+| chỉ mục GIN loại `jsonb_ops` (mặc định) | 2,92 MB | Q4: 3,0 ms |
 
 Giải thích:
-- **jsonb lớn hơn phần dữ liệu quan hệ khoảng 24%**, vì mỗi giá trị lặp lại tên khoá. Ví dụ `"group_code"`, `"meal_plan"`, `"guide_room"`
-  chiếm khoảng 29 B mỗi dòng, cộng thêm phần đầu và bảng vị trí của jsonb. Cùng hiện tượng với Bảng 8.4 của giáo trình (+45%).
-- **Nhưng bản quan hệ cũng tốn kém riêng:** mỗi dòng có tiêu đề bộ 24 B và con trỏ 4 B, lặp lại `booking_id`, mỗi trẻ em là một dòng riêng
-  (23.956 dòng), và cần thêm PK để nối. Tính cả chỉ mục, bản quan hệ (7,52 MB) lớn hơn jsonb.
-- **GIN `jsonb_path_ops` nhỏ hơn `jsonb_ops`**, vì chỉ lưu băm của đường dẫn + giá trị, nên chỉ phục vụ `@>`/`@?`.
-  Với Q4, chỉ mục chỉ lọc được phần so sánh bằng/tồn tại (`airport_pickup = true`, có `children_ages`), ra 7.861 ứng viên.
-  Điều kiện `< 6` không lập chỉ mục được, nên 4.448 dòng bị loại ở bước *Recheck*. Thời gian vẫn giảm một nửa so với quét toàn bảng.
-- Trong hệ phân tán, chênh lệch giữa Q4 và Q5 (449 so với 438 ms) nhỏ hơn rất nhiều so với chi phí vòng khứ hồi.
+- **jsonb lớn hơn dữ liệu bảng thường khoảng 24%**, vì mỗi dòng jsonb lặp lại tên các trường (như `"group_code"`, `"meal_plan"`), tốn khoảng
+  29 byte mỗi dòng. Giáo trình (Bảng 8.4) cũng ghi nhận hiện tượng này.
+- **Con số 4,96 MB đã gồm phần đầu khoảng 28 byte của mỗi dòng.** Dù vậy bảng thường cần nhiều dòng hơn (103.956 dòng so với 80.000 lượt
+  đặt, vì mỗi trẻ em là một dòng riêng) và cần chỉ mục khoá chính để nối với lượt đặt. Tính cả chỉ mục, bảng thường (7,52 MB) lại lớn hơn jsonb.
+- **Chỉ mục GIN** giúp tìm nhanh trong jsonb. Loại `jsonb_path_ops` nhỏ hơn loại mặc định vì chỉ lưu giá trị băm của từng đường dẫn tới giá
+  trị, không lưu riêng từng khoá. Nó hỗ trợ các phép `@>`, `@?` và `@@` (đủ cho Q4), nhưng không hỗ trợ các phép kiểm tra khoá `?`, `?|`,
+  `?&` như loại mặc định. Với Q4, chỉ mục
+  lọc trước được điều kiện "cần đón sân bay" (còn 7.861 dòng); điều kiện "con dưới 6 tuổi" là so sánh lớn nhỏ nên phải kiểm lại từng dòng. Dù
+  vậy thời gian vẫn giảm một nửa.
+- Trong hệ phân tán, Q4 và Q5 chỉ chênh nhau 10 ms (443 so với 433 ms), quá nhỏ so với thời gian chờ mạng.
 
-### 5.6 Phần mở rộng — ngoài yêu cầu của đề
-*Làm thêm, không thuộc D1–D8. Không chạy trong `make all`, không thêm bảng hay cột, không đổi các số liệu ở trên. Chi tiết ở `docs/NANG_CAO.md`.*
+### 5.6 Phần làm thêm
+Hai phần dưới đây ngoài yêu cầu của đề, không ảnh hưởng tới các số liệu ở trên, và đã được thử lại khi bật mã hoá.
+- **E1 — Bản dự phòng cho trạm Phú Quốc.** Máy A giữ một bản sao của trạm Phú Quốc, được cập nhật liên tục; dòng mới ghi ở Phú Quốc xuất hiện ở
+  bản sao sau trung vị 1,9 ms. Khi tắt trạm Phú Quốc, trạm trung tâm chuyển sang đọc bản sao, và Q2, Q3 chạy lại cho kết quả đúng. Nhờ bản sao
+  nằm cùng máy, Q2 ở trễ 30 ms giảm từ 439,5 xuống 330,9 ms, tức bớt khoảng 3,6 lượt đi-về; điều này khớp với ước tính "mỗi trạm xa tốn khoảng
+  3 lượt" ở N3. Chế độ chờ bản sao xác nhận trước khi báo ghi xong làm việc ghi chậm hơn 21–25% (28,7 lên 34,6–35,7 ms), và bản sao hỏng sẽ
+  làm treo việc ghi, nên nhóm chọn chế độ không chờ.
+- **E2 — Thêm đoàn tour an toàn khi có sự cố.** Giao thức hai pha được bổ sung một nhật ký ghi xuống đĩa. Nếu chương trình điều phối bị tắt
+  giữa chừng, khi chạy lại nó đọc nhật ký để hoàn tất hoặc huỷ giao dịch ở cả bốn trạm. Nhóm thử tắt ở ba thời điểm khác nhau, và lần nào
+  dữ liệu cũng được phục hồi đúng. Tạo một đoàn mất 149 ms nếu ghi lần lượt bốn trạm (không an toàn), 219 ms với giao thức hai pha, và 221 ms
+  khi có thêm nhật ký.
 
-| Mã | Nội dung | Kết quả trên hai máy thật |
-|---|---|---|
-| E1 | Bản sao hot standby của mảnh `phuquoc` (máy B) đặt ở máy A, nhận WAL qua streaming replication bất đồng bộ. `make ext-failover` đổi `srv_phuquoc` sang bản sao (chỉ đọc, không promote để tránh split-brain) | dựng ≈ 10 s; độ trễ sao chép trung vị 1,9 ms; tắt `phuquoc` rồi failover thì Q2, Q3 chạy lại và khớp đối chứng |
-| E2 | 2PC tạo đoàn tour có nhật ký điều phối fsync (`begin` → PREPARE ×4 → `commit` → COMMIT PREPARED ×4 → `end`). `make ext-2pc-recover` giải quyết giao dịch lưỡng lự theo *presumed abort*. Đồng thời sửa lỗi bản cũ: lỗi ở pha 2 làm rollback các trạm chưa commit | giả lập bộ điều phối chết sau `prepare`, `decision`, `mid-commit`: phục hồi đúng cả ba; `make check` vẫn ĐẠT |
+## 6. Phân công công việc
 
-E1, E2 đã chạy lại khi TLS bắt buộc: bản sao nhận WAL qua TLS 1.3; failover đổi bản ghi DNS nội bộ nên vẫn `verify-full`; E2 phục hồi đúng.
-So sánh phương án (hai máy thật, `make ext-bench`, trung vị 20 lần, `results/ext/ext_bench.csv`):
+**Bảng 7.** Phân công và mức đóng góp của các thành viên.
 
-| Phép so sánh | Kết quả | Giải thích |
-|---|---|---|
-| Ghi một lượt đặt vào `phuquoc`: sao chép bất đồng bộ / `on` / `remote_apply` | 28,7 / 34,6 / 35,7 ms | đồng bộ thêm đúng 1 vòng B→A (+21–25%); vẫn chọn bất đồng bộ, vì nếu đồng bộ thì bản sao chết sẽ làm ghi ở trạm chính treo |
-| Q2 đọc mảnh `phuquoc` từ trạm chính (máy B) / bản sao (máy A), trễ 30 ms | 439,5 / 330,9 ms | bớt một trạm xa thì bớt ≈ 3,6 vòng: kiểm chứng độc lập con số ≈ 3 vòng/trạm của N3 |
-| Tạo đoàn: 4 INSERT không nguyên tử / 2PC / 2PC + nhật ký | 149 / 219 / 221 ms | 2PC tốn ≈ 2 vòng mỗi trạm; nhật ký fsync chỉ +1,8 ms |
+| Thành viên | MSSV | Công việc chính | Đóng góp |
+|---|---|---|---:|
+| Đào Minh Hùng | 2632006 | Thiết kế phân mảnh và lược đồ trạm; nạp dữ liệu và đối chiếu với summary.json; bộ kiểm tra tính đúng đắn; mã hoá đường truyền (TLS, CA nội bộ); viết báo cáo | 33,3% |
+| Phạm Thị Kim Ngọc | 2532005 | Hạ tầng hai máy (Docker, tệp cấu hình triển khai); giả lập trễ mạng; giao diện nhập liệu và dashboard | 33,3% |
+| Nguyễn Khánh Hòa | 2532018 | Nối trạm bằng postgres_fdw; viết và tối ưu Q1–Q5; đo thời gian và phân tích N1–N5; giao thức hai pha; slide trình bày | 33,3% |
 
-## 6. Phân công
-
-| Thành viên | Công việc chính | Tỉ lệ |
-|---|---|---|
-| Phạm Thị Kim Ngọc (2532005) | Hạ tầng hai máy (Docker, LAN, Windows), `deploy.py`, `delay.py`, `latency_proxy.py`, `onebox.py`, D1/D6/D8 | 25% |
-| Đào Minh Hùng (2632006) | Thiết kế phân tán, `site_schema.sql`, `split.py`, `load.py`, `check.py`, mục 1 và 3 báo cáo | 25% |
-| Nguyễn Khánh Hòa (2532018) | postgres_fdw, Q1–Q5, `bench.py`, phân tích N2–N5 | 25% |
-| Vương Thảo Nguyên (2532013) | Giao diện nhập liệu, dashboard, 2PC, slide, tổng hợp báo cáo | 25% |
-
-Có sử dụng trợ lý AI để hỗ trợ viết mã và văn bản (ghi rõ trong `README.md`). Mọi thành viên đã chạy lại và giải thích được toàn bộ hệ.
+Cả nhóm cùng chạy thử trên hai máy, kiểm tra kết quả và chuẩn bị phần demo D1–D8.
 
 ## 7. Tài liệu tham khảo
-1. M. T. Özsu, P. Valduriez. *Principles of Distributed Database Systems*, 4th ed., Springer, 2020 (Ch. 2, 4).
-2. Cao Tiến Dũng. *Giáo trình Hệ cơ sở dữ liệu nâng cao (CS5104)*, Trường ĐH Tân Tạo, 2026 — Chương 1–3, 8; Tập 2: Bài 1, 2, 3, 8, Phụ lục B.
-3. PostgreSQL Global Development Group. *PostgreSQL 18 Documentation*: F.38 postgres_fdw; 8.14 JSON Types; 65.4 GIN Indexes; PREPARE TRANSACTION; 18.9 SSL; 20.12 Certificate Authentication; 32.19 SSL Support (libpq).
-4. Linux man-pages: `tc-netem(8)`, `tc-prio(8)`, `tc-u32(8)`.
-5. Psycopg 3 Documentation (COPY, two-phase commit); Streamlit Documentation (`st.fragment`).
+1. M. T. Özsu, P. Valduriez. *Principles of Distributed Database Systems*, 4th ed. Springer, 2020 (Ch. 2, 4).
+2. Cao Tiến Dũng. *Giáo trình Hệ cơ sở dữ liệu nâng cao (CS5104)*. Trường Đại học Tân Tạo, 2026 — Chương 1–3, 8; Tập 2: Bài 1, 2, 3, 8 và Phụ lục B.
+3. PostgreSQL Global Development Group. *PostgreSQL 18 Documentation*: F.38 postgres_fdw; 8.14 JSON Types; 65.4 GIN Indexes; PREPARE TRANSACTION; 18.9 Secure TCP/IP Connections with SSL; 20.12 Certificate Authentication.
+4. Linux man-pages: `tc-netem(8)`.
+5. Psycopg 3 Documentation; Streamlit Documentation.

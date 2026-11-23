@@ -16,7 +16,7 @@ EVENTS = RESULTS / "events.jsonl"
 
 def site_label(site: str) -> str:
     m = cfg.machine_of(site)
-    return f"trạm **{site}** ({REGION_NAME.get(site, site)}) · máy **{m}** ({cfg.machines[m]['os']}) · {cfg.machine_ip(site)}:{cfg.node(site)['port']}"
+    return f"trạm **{site}** ({REGION_NAME.get(site, site)}) · máy **{m}** · {cfg.machine_ip(site)}:{cfg.node(site)['port']}"
 
 
 def connect(site: str, timeout: int = 2, autocommit: bool = True):

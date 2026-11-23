@@ -187,13 +187,12 @@ Trước buổi bảo vệ: hai máy đã `git pull`, đã chạy `make all` ít
 | Windows: chữ tiếng Việt lỗi trong console | Makefile đã đặt `PYTHONUTF8=1`; dùng Windows Terminal |
 | Dashboard không cập nhật | xem `results/logs/dash.log`; chạy tiền cảnh bằng `make dash` |
 
-## 10. Phân công gợi ý (4 thành viên)
+## 10. Phân công gợi ý (3 thành viên)
 | Thành viên | Phụ trách chính | Hiểu sâu để vấn đáp |
 |---|---|---|
-| Phạm Thị Kim Ngọc (2532005) | Hạ tầng: `deploy.py`, Docker, LAN, Windows, `delay.py`, `latency_proxy.py`, `onebox.py` | D1, D6, D8, N3 |
-| Đào Minh Hùng (2632006) | Thiết kế phân tán: `site_schema.sql`, `split.py`, `load.py`, `check.py` | M1, D2, N1 |
-| Nguyễn Khánh Hòa (2532018) | Truy vấn và đo đạc: `sql/queries`, `link.py`, `bench.py` | D3–D5, N2, N4, N5 |
-| Vương Thảo Nguyên (2532013) | Giao diện: `entry.py`, `dash.py`, 2PC; báo cáo và slide | D7, D8 |
+| Phạm Thị Kim Ngọc (2532005) | Hạ tầng: `deploy.py`, Docker, mạng hai máy, `delay.py`, `latency_proxy.py`, `onebox.py`; giao diện `entry.py`, `dash.py` | D1, D6, D7, D8, N3 |
+| Đào Minh Hùng (2632006) | Thiết kế phân tán: `site_schema.sql`, `split.py`, `load.py`, `check.py`; TLS `tls.py`, `tls_site.py`; báo cáo | M1, D2, N1 |
+| Nguyễn Khánh Hòa (2532018) | Truy vấn và đo đạc: `sql/queries`, `link.py`, `bench.py`; 2PC; slide | D3–D5, N2, N4, N5 |
 
 ## 11. Phần mở rộng (ngoài yêu cầu đề)
 

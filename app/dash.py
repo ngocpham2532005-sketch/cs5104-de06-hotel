@@ -70,7 +70,7 @@ def live():
             dot = "🟢" if info["up"] else "🔴"
             central = " · ⭐ trung tâm" if s == cfg.central else ""
             st.markdown(f"### {dot} {s}{central}")
-            st.markdown(f"**{REGION_NAME[s]}** · máy **{m}** ({cfg.machines[m]['os']})  \n"
+            st.markdown(f"**{REGION_NAME[s]}** · máy **{m}**  \n"
                         f"`{cfg.machine_ip(s)}:{cfg.node(s)['port']}`")
             if info["up"]:
                 df = pd.DataFrame({"bảng": ALL_TABLES, "số dòng": [info["counts"][t] for t in ALL_TABLES]})

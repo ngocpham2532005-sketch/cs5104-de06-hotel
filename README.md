@@ -10,9 +10,9 @@ khung nhìn toàn cục `all_<bảng>`; có giao diện nhập liệu và dashbo
 | A | macOS | `nhatrang` (trung tâm), `dalat`, `ref` (CSDL đối chứng), nhập liệu, dashboard | 5433, 5434, 5440, 8501, 8502 |
 | B | Windows 10/11 | `phuquoc`, `danang` | 5435, 5436 |
 
-**Nhóm 8** · Đào Minh Hùng (2632006) · Phạm Thị Kim Ngọc (2532005) · Nguyễn Khánh Hòa (2532018) 
-· Đề 6, seed 402738 · Mã nguồn: <https://github.com/ngocpham2532005-sketch/cs5104-de06-hotel>, branch `nhom8-de06-hotel-ddb`
-(bản nộp sẽ gắn tag `final`).
+**Nhóm 8** · Đào Minh Hùng (2632006) · Phạm Thị Kim Ngọc (2532005) · Nguyễn Khánh Hòa (2532018)
+· Đề 6, seed 402738 · Mã nguồn: <https://github.com/ngocpham2532005-sketch/cs5104-de06-hotel>, nhánh `main`, bản nộp
+gắn tag `final`.
 
 Tài liệu: [IMPLEMENT.md](IMPLEMENT.md) (thiết kế và cách cài đặt chi tiết) · [docs/BAO_CAO.md](docs/BAO_CAO.md) (báo cáo, bản PDF ở `docs/BAO_CAO.pdf`)
 · [docs/NANG_CAO.md](docs/NANG_CAO.md) (**phần mở rộng, ngoài yêu cầu đề**) · [docs/KIEN_THUC_BAO_VE.md](docs/KIEN_THUC_BAO_VE.md) (ôn tập bảo vệ, nội bộ).

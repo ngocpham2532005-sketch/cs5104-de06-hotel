@@ -296,7 +296,7 @@ gì, `make all` mất **4 phút 35 giây**.
 **Cách đo.** Mỗi truy vấn chạy 5 lần ngay trên máy chủ của trạm thực hiện. Lần đầu bị bỏ, vì có thêm thời gian mở kết nối; con số báo cáo là
 trung vị của 4 lần còn lại. Kết quả mỗi lần chạy đều được so từng dòng với CSDL đối chứng, và **tất cả đều khớp**. Để giả lập hai trạm ở xa
 nhau, nhóm dùng công cụ `tc netem` của Linux làm chậm mọi gói tin từ trạm trung tâm tới các trạm khác thêm 30 ms. Bản thân mạng giữa hai
-máy đã có độ trễ khoảng 7–9 ms cho mỗi lượt đi-về.
+máy đã có độ trễ khoảng 8–9 ms cho mỗi lượt đi-về.
 
 ### N1 — Số dòng ở mỗi trạm
 Số dòng ở Bảng 2 được giải thích từ cách bộ sinh tạo dữ liệu:
@@ -352,7 +352,7 @@ Giải thích:
 - **Q4 và Q5 có số lượt đo được lớn hơn** (khoảng 15), vì chúng gửi về hàng nghìn dòng, và thời gian truyền lượng dữ liệu đó cũng tăng khi mạng chậm.
 
 **Nếu cấu hình khác thì sao.** Nhóm đo thêm Q2 với các cách làm kém hơn để thấy tác dụng của từng lựa chọn (trễ 30 ms):
-- tắt chế độ hỏi song song các trạm: 536 ms (13 lượt);
+- tắt chế độ hỏi song song các trạm: 536 ms (12,3 lượt);
 - tắt chế độ kết thúc giao dịch song song: 515 ms (13 lượt);
 - nối thẳng ba bảng, kéo dữ liệu thô về: 1.221 ms;
 - để PostgreSQL tự hỏi trạm xa ước lượng chi phí: 2.682 ms, trong đó riêng việc lập kế hoạch mất 2.324 ms;
@@ -384,9 +384,9 @@ chứng (80.000 lượt đặt):
 |---|---:|---|
 | jsonb | **6,17 MB** (trung bình 77 byte mỗi lượt đặt) | Q4 không chỉ mục: 5,3 ms |
 | 4 bảng thường, chỉ dữ liệu | **4,96 MB** (103.956 dòng) | — |
-| 4 bảng thường kèm chỉ mục khoá chính | 7,52 MB | Q5: 4,8 ms |
-| chỉ mục GIN loại `jsonb_path_ops` | 2,18 MB | Q4: **2,5 ms** |
-| chỉ mục GIN loại `jsonb_ops` (mặc định) | 2,92 MB | Q4: 3,0 ms |
+| 4 bảng thường kèm chỉ mục khoá chính | 7,52 MB | Q5: 4,6 ms |
+| chỉ mục GIN loại `jsonb_path_ops` | 2,18 MB | Q4: **2,3 ms** |
+| chỉ mục GIN loại `jsonb_ops` (mặc định) | 2,92 MB | Q4: 3,1 ms |
 
 Giải thích:
 - **jsonb lớn hơn dữ liệu bảng thường khoảng 24%**, vì mỗi dòng jsonb lặp lại tên các trường (như `"group_code"`, `"meal_plan"`), tốn khoảng

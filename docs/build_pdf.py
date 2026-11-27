@@ -24,7 +24,7 @@ ul, ol { margin: 2px 0 5px; padding-left: 20px; } li { margin: 1px 0; }
 table { border-collapse: collapse; width: 100%; margin: 4px 0 8px; font-size: 9.1pt; page-break-inside: avoid; }
 th, td { border: 1px solid #aaa; padding: 2px 4px; vertical-align: top; }
 th { background: #eef1f6; }
-code { font-family: Menlo, Consolas, monospace; font-size: 8.8pt; background: #f4f4f4; padding: 0 2px; }
+code { font-family: Menlo, Consolas, "Liberation Mono", monospace; font-size: 8.8pt; background: #f4f4f4; padding: 0 2px; }
 pre { background: #f4f4f4; padding: 5px 7px; font-size: 8.2pt; line-height: 1.25; page-break-inside: avoid; }
 pre code { background: none; }
 img { max-width: 100%; border: 1px solid #ccc; }
@@ -92,7 +92,7 @@ def render(body: str, out: Path):
         pg.pdf(path=str(out), format="A4", print_background=True,
                display_header_footer=True, header_template="<span></span>",
                footer_template="<div style='font-size:8pt;width:100%;text-align:center;color:#666'>"
-                               "CS5104 · Đề 6 · Nhóm 8 · <span class='pageNumber'></span>/<span class='totalPages'></span></div>",
+                               "CS5104 · Đề 6 · Nhóm 6 · <span class='pageNumber'></span>/<span class='totalPages'></span></div>",
                margin={"top": "15mm", "bottom": "16mm", "left": "18mm", "right": "15mm"})
         b.close()
     tmp.unlink()

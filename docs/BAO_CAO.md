@@ -11,7 +11,7 @@
 
 <table class="cv-info">
 <tr><td>Giảng viên</td><td>TS. Cao Tiến Dũng</td></tr>
-<tr><td>Nhóm thực hiện</td><td>Nhóm 8</td></tr>
+<tr><td>Nhóm thực hiện</td><td>Nhóm 6</td></tr>
 <tr><td>Thành viên</td><td>Đào Minh Hùng — 2632006<br>Phạm Thị Kim Ngọc — 2532005<br>Nguyễn Khánh Hòa — 2532018</td></tr>
 <tr><td>Mã nguồn</td><td>github.com/ngocpham2532005-sketch/cs5104-de06-hotel (tag <code>final</code>)</td></tr>
 <tr><td>Dữ liệu</td><td>Bộ sinh của giảng viên, seed 402738, cỡ <code>lab</code></td></tr>
@@ -114,9 +114,9 @@ giao diện nhập liệu và dashboard. Máy B chạy trạm Phú Quốc và Đ
 vẫn chạy được; và có thể so sánh việc hỏi một trạm cùng máy với hỏi một trạm ở máy khác.
 
 **Phương án đã xem xét nhưng không chọn.** Có thể chia lượt đặt theo đoàn tour, để mọi phòng của một đoàn nằm cùng một trạm và Q3 không
-phải đi qua mạng. Nhưng khi đó 45% lượt đặt (của khách đoàn) sẽ nằm khác trạm với phòng và khách sạn của chúng, nên Q1 và Q2 lại phải đi
-qua mạng; cách này cũng trái với yêu cầu "đặt phòng lưu tại vùng khách sạn" của đề. Với cách đã chọn, chỉ 6,4% lượt đặt gây ra truy vấn qua
-mạng, và chỉ trong Q3.
+phải đi qua mạng. Nhưng khi đó lượt đặt của các đoàn đi nhiều vùng sẽ nằm khác trạm với phòng và khách sạn của chúng, nên Q1 và Q2 lại phải
+đi qua mạng; cách này cũng trái với yêu cầu "đặt phòng lưu tại vùng khách sạn" của đề. Với cách đã chọn, dòng liên vùng chỉ chiếm 6,4% số
+lượt đặt và chỉ ảnh hưởng tới Q3.
 
 ### 1.4 Vì sao cách chia này không làm mất hay trùng dữ liệu
 Giáo trình nêu ba điều kiện cho một cách chia đúng:
@@ -317,7 +317,7 @@ Số dòng ở Bảng 2 được giải thích từ cách bộ sinh tạo dữ l
 |---|---|---|---|
 | Q1 | Đà Lạt | 1 (chính nó) | không hỏi trạm nào khác |
 | Q2 | trung tâm | 4 | mỗi trạm tự tính doanh thu của vùng mình, gửi về 15 dòng tổng (một dòng mỗi loại phòng) |
-| Q3 | trung tâm | 4 | mỗi trạm tự tìm phòng của đoàn; gửi về 0 / 14 / 22 / 10 dòng |
+| Q3 | trung tâm | 4 | mỗi trạm tự tìm phòng của đoàn; Đà Lạt 0, Nha Trang 14, Phú Quốc 22, Đà Nẵng 10 dòng |
 | Q4 | trung tâm | 4 | mỗi trạm tự lọc khách gia đình theo jsonb, chỉ gửi về các dòng thoả điều kiện |
 | Q5 | trung tâm | 4 | như Q4 nhưng lọc trên bảng yêu cầu dạng thường |
 
@@ -360,8 +360,8 @@ Giải thích:
 
 Mỗi lượt đi-về thừa đều phải trả giá, nên số lượt mới là yếu tố quyết định, không phải lượng tính toán.
 
-Mã hoá không làm thay đổi kết luận. Lần đo trước khi bật mã hoá cho Q2 436 ms, Q3 423 ms, Q4 449 ms và Q5 438 ms. Mức chênh khoảng ±5% theo
-cả hai chiều, tức chỉ là dao động của mạng, và số lượt đi-về giữ nguyên.
+Mã hoá không làm thay đổi kết luận. Đo Q2 ở trễ 30 ms trong cùng một lần chạy: 456 ms khi không mã hoá và 458 ms với cấu hình mã hoá
+hệ đang dùng (`results/ext/e3_bench.csv`). Chênh lệch chỉ là dao động của mạng, và số lượt đi-về giữ nguyên.
 
 ### N4 — Tỉ lệ dòng liên vùng
 - **Số liệu.** 5.144 trên 80.000 lượt đặt (**6,43%**) là dòng liên vùng, thuộc 115 đoàn (14% số đoàn). Ví dụ đoàn 1 có 46 phòng: 14 ở Nha
@@ -414,19 +414,17 @@ Hai phần dưới đây ngoài yêu cầu của đề, không ảnh hưởng t�
 
 ## 6. Phân công công việc
 
-**Bảng 7.** Phân công và mức đóng góp của các thành viên.
+**Bảng 7.** Phân công và mức đóng góp. Cả nhóm cùng chạy thử trên hai máy, kiểm tra kết quả và chuẩn bị demo D1–D8.
 
 | Thành viên | MSSV | Công việc chính | Đóng góp |
 |---|---|---|---:|
-| Đào Minh Hùng | 2632006 | Thiết kế phân mảnh và lược đồ trạm; nạp dữ liệu và đối chiếu với summary.json; bộ kiểm tra tính đúng đắn; mã hoá đường truyền (TLS, CA nội bộ); viết báo cáo | 33,3% |
-| Phạm Thị Kim Ngọc | 2532005 | Hạ tầng hai máy (Docker, tệp cấu hình triển khai); giả lập trễ mạng; giao diện nhập liệu và dashboard | 33,3% |
-| Nguyễn Khánh Hòa | 2532018 | Nối trạm bằng postgres_fdw; viết và tối ưu Q1–Q5; đo thời gian và phân tích N1–N5; giao thức hai pha; slide trình bày | 33,3% |
+| Đào Minh Hùng | 2632006 | Thiết kế phân mảnh, lược đồ trạm; nạp và đối chiếu summary.json; bộ kiểm tra; mã hoá TLS; viết báo cáo | 33,3% |
+| Phạm Thị Kim Ngọc | 2532005 | Hạ tầng hai máy (Docker, cấu hình triển khai); giả lập trễ mạng; giao diện nhập liệu, dashboard | 33,3% |
+| Nguyễn Khánh Hòa | 2532018 | Nối trạm bằng postgres_fdw; viết, tối ưu Q1–Q5; đo, phân tích N1–N5; giao thức 2PC; slide | 33,3% |
 
-Cả nhóm cùng chạy thử trên hai máy, kiểm tra kết quả và chuẩn bị phần demo D1–D8.
 
 ## 7. Tài liệu tham khảo
 1. M. T. Özsu, P. Valduriez. *Principles of Distributed Database Systems*, 4th ed. Springer, 2020 (Ch. 2, 4).
 2. Cao Tiến Dũng. *Giáo trình Hệ cơ sở dữ liệu nâng cao (CS5104)*. Trường Đại học Tân Tạo, 2026 — Chương 1–3, 8; Tập 2: Bài 1, 2, 3, 8 và Phụ lục B.
-3. PostgreSQL Global Development Group. *PostgreSQL 18 Documentation*: F.38 postgres_fdw; 8.14 JSON Types; 65.4 GIN Indexes; PREPARE TRANSACTION; 18.9 Secure TCP/IP Connections with SSL; 20.12 Certificate Authentication.
-4. Linux man-pages: `tc-netem(8)`.
-5. Psycopg 3 Documentation; Streamlit Documentation.
+3. PostgreSQL Global Development Group. *PostgreSQL 18 Documentation*: F.38 postgres_fdw; 8.14 JSON Types; 65.4 GIN Indexes; PREPARE TRANSACTION; 18.9 SSL; 20.12 Certificate Authentication.
+4. Linux man-pages: `tc-netem(8)`; Psycopg 3 Documentation; Streamlit Documentation.
